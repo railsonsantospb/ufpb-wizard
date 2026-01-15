@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ufpb.br/schemas/anexo2-relatorio-viagem.json",
+  "title": "ANEXO II - Relatório de Viagem",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["data_relatorio", "proposto", "afastamento", "atividades_desenvolvidas", "viagem_realizada"],
+  "properties": {
+    "data_relatorio": { "type": "string", "format": "date" },
+
+    "proposto": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nome", "cpf", "siape", "orgao"],
+      "properties": {
+        "nome": { "type": "string", "minLength": 3, "maxLength": 120 },
+        "cpf": { "type": "string", "pattern": "^[0-9]{11}$" },
+        "siape": { "type": "string", "pattern": "^[0-9]{4,15}$" },
+        "orgao": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["tipo"],
+          "properties": {
+            "tipo": { "type": "string", "enum": ["cchsa", "cavn", "projetos", "outros"] },
+            "detalhe": { "type": "string", "minLength": 2, "maxLength": 200 }
+          },
+          "allOf": [
+            {
+              "if": { "properties": { "tipo": { "enum": ["projetos", "outros"] } } },
+              "then": { "required": ["detalhe"] },
+              "else": {
+                "properties": { "detalhe": { "type": "string", "maxLength": 0 } }
+              }
+            }
+          ]
+        }
+      }
+    },
+
+    "afastamento": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ida", "retorno"],
+      "properties": {
+        "ida": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["origem", "destino", "data_hora"],
+          "properties": {
+            "origem": { "type": "string", "minLength": 2, "maxLength": 80 },
+            "destino": { "type": "string", "minLength": 2, "maxLength": 80 },
+            "data_hora": { "type": "string", "format": "date-time" }
+          }
+        },
+        "retorno": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["origem", "destino", "data_hora"],
+          "properties": {
+            "origem": { "type": "string", "minLength": 2, "maxLength": 80 },
+            "destino": { "type": "string", "minLength": 2, "maxLength": 80 },
+            "data_hora": { "type": "string", "format": "date-time" }
+          }
+        }
+      }
+    },
+
+    "atividades_desenvolvidas": {
+      "type": "string",
+      "minLength": 20,
+      "maxLength": 4000
+    },
+
+    "flags": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "prestacao_contas_fora_prazo": {
+          "type": "boolean",
+          "description": "Calculado pelo sistema: hoje > retorno + 5 dias."
+        }
+      }
+    },
+
+    "justificativa_prestacao_contas_fora_prazo": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 2000
+    },
+
+    "viagem_realizada": { "type": "string", "enum": ["sim", "nao"] }
+  },
+
+  "allOf": [
+    {
+      "description": "Retorno >= Ida (validação de datas - backend)."
+    },
+    {
+      "if": {
+        "properties": {
+          "flags": {
+            "properties": { "prestacao_contas_fora_prazo": { "const": true } },
+            "required": ["prestacao_contas_fora_prazo"]
+          }
+        },
+        "required": ["flags"]
+      },
+      "then": { "required": ["justificativa_prestacao_contas_fora_prazo"] }
+    }
+  ]
+}

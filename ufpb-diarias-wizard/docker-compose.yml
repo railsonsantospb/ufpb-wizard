@@ -1,0 +1,11 @@
+services:
+  wizard:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./app/templates:/app/app/templates
+      - ./data:/app/data
+    environment:
+      - TZ=America/Recife
+

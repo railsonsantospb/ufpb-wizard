@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <link rel="stylesheet" href="/static/styles.css"/>
+  <title>UFPB - Assistente de Diárias</title>
+</head>
+<body>
+  <div class="container">
+    <div class="topbar">
+      <div class="brand">
+        <div class="brand-badge" aria-hidden="true"></div>
+        <div>
+          <h1>UFPB • Assistente de Diárias e Relatórios</h1>
+          <p>Preenchimento guiado, validação automática e geração DOCX/PDF.</p>
+        </div>
+      </div>
+      <div class="actions">
+        <span class="pill">Portável • Navegador</span>
+        <a class="btn btn-ghost" href="https://www.ufpb.br/" target="_blank" rel="noreferrer">UFPB</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Selecione o documento</h2>
+          <div class="meta">Escolha o formulário e gere o arquivo pronto para anexar no SIPAC.</div>
+        </div>
+        <span class="badge">MVP</span>
+      </div>
+
+      <div class="grid">
+        <a class="btn btn-primary" href="/anexo1">ANEXO I • Requisição</a>
+        <a class="btn" href="/anexo2">ANEXO II • Relatório de Viagem</a>
+      </div>
+
+      <hr class="sep">
+
+      <div class="row">
+        <span class="badge success">Valida datas</span>
+        <span class="badge warn">Exige justificativas quando aplicável</span>
+        <span class="badge">Gera DOCX/PDF</span>
+      </div>
+    </div>
+
+    <div class="footer">
+      Dica: mantenha os templates com placeholders (snake_case) em <code>app/templates</code>.
+    </div>
+  </div>
+</body>
+</html>

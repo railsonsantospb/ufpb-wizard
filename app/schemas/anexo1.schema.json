@@ -1,0 +1,244 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ufpb.br/schemas/anexo1-requisicao-diarias-passagens.json",
+  "title": "ANEXO I - Requisição de Diárias/Passagens",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "tipo_solicitacao",
+    "data_solicitacao",
+    "servidor",
+    "motivo_viagem",
+    "trechos",
+    "missao",
+    "debito_recurso",
+    "transporte"
+  ],
+  "properties": {
+    "tipo_solicitacao": {
+      "type": "string",
+      "enum": ["diarias", "passagens", "diarias_e_passagens"],
+      "description": "Seleção inicial. Determina prazo de fora do prazo (10 dias sem passagens; 30 dias com passagens)."
+    },
+    "data_solicitacao": {
+      "type": "string",
+      "format": "date",
+      "description": "Data de preenchimento/solicitação."
+    },
+    "servidor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nome_completo",
+        "cargo_funcao",
+        "cpf",
+        "rg",
+        "data_nascimento",
+        "siape",
+        "nome_mae",
+        "endereco",
+        "telefone",
+        "email",
+        "dados_bancarios"
+      ],
+      "properties": {
+        "nome_completo": { "type": "string", "minLength": 3, "maxLength": 120 },
+        "cargo_funcao": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "cpf": {
+          "type": "string",
+          "pattern": "^[0-9]{11}$",
+          "description": "Somente números. (A validação do dígito verificador pode ser feita no frontend/backend.)"
+        },
+        "rg": { "type": "string", "minLength": 3, "maxLength": 20 },
+        "data_nascimento": { "type": "string", "format": "date" },
+        "siape": { "type": "string", "pattern": "^[0-9]{4,15}$" },
+        "nome_mae": { "type": "string", "minLength": 3, "maxLength": 120 },
+        "endereco": { "type": "string", "minLength": 5, "maxLength": 200 },
+        "telefone": {
+          "type": "string",
+          "pattern": "^[0-9]{10,11}$",
+          "description": "DDD + número, somente números (10 ou 11 dígitos)."
+        },
+        "email": { "type": "string", "format": "email", "maxLength": 120 },
+        "dados_bancarios": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["banco", "agencia", "conta"],
+          "properties": {
+            "banco": { "type": "string", "minLength": 2, "maxLength": 40 },
+            "agencia": { "type": "string", "pattern": "^[0-9]{1,10}$" },
+            "conta": { "type": "string", "pattern": "^[0-9]{1,20}$" }
+          }
+        }
+      }
+    },
+    "motivo_viagem": {
+      "type": "string",
+      "minLength": 20,
+      "maxLength": 2000
+    },
+    "trechos": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ida", "retorno"],
+      "properties": {
+        "ida": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["origem", "destino", "data_hora"],
+          "properties": {
+            "origem": { "type": "string", "minLength": 2, "maxLength": 80 },
+            "destino": { "type": "string", "minLength": 2, "maxLength": 80 },
+            "data_hora": { "type": "string", "format": "date-time" }
+          }
+        },
+        "retorno": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["origem", "destino", "data_hora"],
+          "properties": {
+            "origem": { "type": "string", "minLength": 2, "maxLength": 80 },
+            "destino": { "type": "string", "minLength": 2, "maxLength": 80 },
+            "data_hora": { "type": "string", "format": "date-time" }
+          }
+        }
+      }
+    },
+    "missao": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["inicio_data_hora", "termino_data_hora"],
+      "properties": {
+        "inicio_data_hora": { "type": "string", "format": "date-time" },
+        "termino_data_hora": { "type": "string", "format": "date-time" }
+      }
+    },
+    "debito_recurso": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tipo"],
+      "properties": {
+        "tipo": { "type": "string", "enum": ["cchsa", "cavn", "projeto", "outros"] },
+        "detalhe": { "type": "string", "minLength": 2, "maxLength": 200 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "tipo": { "enum": ["projeto", "outros"] } } },
+          "then": { "required": ["detalhe"] },
+          "else": {
+            "properties": { "detalhe": { "type": "string", "maxLength": 0 } }
+          }
+        }
+      ]
+    },
+    "transporte": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["meios"],
+      "properties": {
+        "meios": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "veiculo_oficial",
+              "empresa_terrestre",
+              "empresa_aerea",
+              "veiculo_proprio"
+            ]
+          }
+        },
+        "termo_veiculo_proprio_ciente": {
+          "type": "boolean",
+          "description": "No MVP pode ser apenas 'ciente'. Em evolução."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "meios": { "contains": { "const": "veiculo_proprio" } }
+            }
+          },
+          "then": { "required": ["termo_veiculo_proprio_ciente"] }
+        }
+      ]
+    },
+
+    "flags": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "envolve_fds_feriado_ou_dia_anterior": {
+          "type": "boolean",
+          "description": "Calculado pelo sistema (ex.: fim de semana/feriado) ou marcado pelo usuário (dia anterior)."
+        },
+        "fora_do_prazo": {
+          "type": "boolean",
+          "description": "Calculado pelo sistema (10 dias sem passagens; 30 dias com passagens)."
+        }
+      }
+    },
+
+    "justificativas": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "justificativa_fds_feriado_dia_anterior": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 2000
+        },
+        "justificativa_fora_prazo": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 2000
+        }
+      }
+    }
+  },
+
+  "allOf": [
+    {
+      "description": "Retorno >= Ida (validação de datas - implementar no backend ou com extensão $data no validador)."
+    },
+    {
+      "description": "Término da missão >= início da missão (validação de datas - backend)."
+    },
+
+    {
+      "if": {
+        "properties": {
+          "flags": {
+            "properties": { "envolve_fds_feriado_ou_dia_anterior": { "const": true } },
+            "required": ["envolve_fds_feriado_ou_dia_anterior"]
+          }
+        },
+        "required": ["flags"]
+      },
+      "then": {
+        "required": ["justificativas"],
+        "properties": {
+          "justificativas": { "required": ["justificativa_fds_feriado_dia_anterior"] }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "flags": {
+            "properties": { "fora_do_prazo": { "const": true } },
+            "required": ["fora_do_prazo"]
+          }
+        },
+        "required": ["flags"]
+      },
+      "then": {
+        "required": ["justificativas"],
+        "properties": { "justificativas": { "required": ["justificativa_fora_prazo"] } }
+      }
+    }
+  ]
+}

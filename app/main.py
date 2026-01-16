@@ -15,11 +15,9 @@ from app.services.validate_anexo1 import validate_and_enrich_anexo1
 from app.services.validate_anexo2 import validate_and_enrich_anexo2
 from app.services.docx_render import render_docx_from_template
 from app.services.pdf_convert import convert_docx_to_pdf
-from app.routers.assistant import router as assistant_router
 
 
 app = FastAPI(title="UFPB Diárias Wizard")
-app.include_router(assistant_router)
 
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")

@@ -13,9 +13,30 @@ import pdfplumber
 from docx import Document
 
 
+def _merge_label_value_lines(text: str) -> str:
+    """If a line ends with ':' and next line is the value, merge them."""
+    lines = [ln.strip() for ln in text.splitlines()]
+    merged: List[str] = []
+    skip = False
+    for i, ln in enumerate(lines):
+        if skip:
+            skip = False
+            continue
+        if ln.endswith(":") and i + 1 < len(lines):
+            nxt = lines[i + 1].strip()
+            # next line is likely a value (not another label with colon)
+            if nxt and not re.search(r":\s*$", nxt):
+                merged.append(f"{ln} {nxt}")
+                skip = True
+                continue
+        merged.append(ln)
+    return "\n".join(merged)
+
+
 def normalize_text(s: str) -> str:
     """Normalize doc text before applying regexes."""
     s = s.replace("\r", "\n")
+    s = _merge_label_value_lines(s)
     s = re.sub(r"[ \t]+", " ", s)
     s = re.sub(r"\n{2,}", "\n", s)
     return s.strip()
@@ -23,6 +44,22 @@ def normalize_text(s: str) -> str:
 
 def find_one(pattern: str, text: str, flags=re.IGNORECASE) -> Optional[str]:
     m = re.search(pattern, text, flags)
+    return m.group(1).strip() if m else None
+
+
+STOP_LABELS_PATTERN = (
+    r"(?:Nome completo|Cargo ou Fun[cç][ãa]o que Ocupa|CPF|RG|Data de Nascimento|"
+    r"Siape|Nome da M[ãa]e|Endere[cç]o|Telefone|Email|Banco|Ag[êe]ncia|Conta)\s*:"
+)
+
+
+def find_with_stop(label_regex: str, text: str) -> Optional[str]:
+    """
+    Capture value after label until the next known label (or end).
+    Helps when DOCX coloca vários campos na mesma linha.
+    """
+    pattern = rf"{label_regex}:\s*(.+?)\s*(?={STOP_LABELS_PATTERN}|$)"
+    m = re.search(pattern, text, flags=re.IGNORECASE | re.DOTALL)
     return m.group(1).strip() if m else None
 
 
@@ -90,24 +127,24 @@ def parse_missao(text: str) -> Dict[str, Optional[str]]:
 def parse_identificacao(text: str) -> Dict[str, Any]:
     block = find_block(r"IDENTIFICAÇ[ÃA]O\s*", r"DESCRIÇ[ÃA]O DO MOTIVO DA VIAGEM:", text) or ""
 
-    nome = find_one(r"Nome completo:\s*(.+)", block)
-    cargo = find_one(r"Cargo ou Fun[cç][aã]o que Ocupa:\s*(.+)", block)
+    nome = find_with_stop(r"Nome completo", block)
+    cargo = find_with_stop(r"Cargo ou Fun[cç][aã]o que Ocupa", block)
 
-    cpf = find_one(r"CPF:\s*([0-9\.\-]{11,14}|\d{11})", block)
-    rg = find_one(r"RG:\s*([0-9\.\-]+)", block)
+    cpf = find_with_stop(r"CPF", block) or find_one(r"CPF:\s*([0-9\.\-]{11,14}|\d{11})", block)
+    rg = find_with_stop(r"RG", block) or find_one(r"RG:\s*([0-9\.\-]+)", block)
 
-    nasc = find_one(r"Data de Nascimento:\s*([0-3]\d/[0-1]\d/\d{4})", block)
-    siape = find_one(r"Siape:\s*(\d+)", block)
+    nasc = find_with_stop(r"Data de Nascimento", block) or find_one(r"Data de Nascimento:\s*([0-3]\d/[0-1]\d/\d{4})", block)
+    siape = find_with_stop(r"Siape", block) or find_one(r"Siape:\s*(\d+)", block)
 
-    mae = find_one(r"Nome da M[ãa]e:\s*(.+)", block)
-    endereco = find_one(r"Endere[cç]o:\s*(.+)", block)
+    mae = find_with_stop(r"Nome da M[ãa]e", block)
+    endereco = find_with_stop(r"Endere[cç]o", block)
 
-    telefone = find_one(r"Telefone:\s*([\d\(\)\-\s]+)", block)
-    email = find_one(r"Email:\s*([^\s]+@[^\s]+)", block)
+    telefone = find_with_stop(r"Telefone", block) or find_one(r"Telefone:\s*([\d\(\)\-\s]+)", block)
+    email = find_with_stop(r"Email", block) or find_one(r"Email:\s*([^\s]+@[^\s]+)", block)
 
-    banco = find_one(r"Banco:\s*([A-Za-z0-9]+)", block)
-    agencia = find_one(r"Ag[êe]ncia:\s*([0-9]+)", block)
-    conta = find_one(r"Conta:\s*([0-9]+)", block)
+    banco = find_with_stop(r"Banco", block) or find_one(r"Banco:\s*([A-Za-z0-9]+)", block)
+    agencia = find_with_stop(r"Ag[êe]ncia", block) or find_one(r"Ag[êe]ncia:\s*([0-9]+)", block)
+    conta = find_with_stop(r"Conta", block) or find_one(r"Conta:\s*([0-9]+)", block)
 
     return {
         "nome_completo": nome,
@@ -155,34 +192,14 @@ def _extract_text_from_pdf(path: Path) -> str:
         raise ValueError("Falha ao ler PDF. Certifique-se de que é um PDF com texto.") from exc
 
 
-def _extract_text_from_docx(path: Path) -> str:
-    try:
-        doc = Document(path)
-    except Exception as exc:
-        raise ValueError("Falha ao ler DOCX.") from exc
-
-    parts: List[str] = []
-    for p in doc.paragraphs:
-        if p.text:
-            parts.append(p.text)
-    for table in doc.tables:
-        for row in table.rows:
-            parts.append(" ".join(cell.text for cell in row.cells))
-
-    text = "\n".join(parts).strip()
-    if not text:
-        raise ValueError("DOCX sem texto legível.")
-    return text
-
-
-def _convert_doc_to_docx(path: Path) -> Path:
+def _convert_to_pdf(path: Path) -> Path:
     tmpdir = Path(tempfile.mkdtemp())
-    out_path = tmpdir / f"{path.stem}.docx"
-    cmd = ["soffice", "--headless", "--convert-to", "docx", "--outdir", str(tmpdir), str(path)]
+    out_path = tmpdir / f"{path.stem}.pdf"
+    cmd = ["soffice", "--headless", "--convert-to", "pdf", "--outdir", str(tmpdir), str(path)]
     result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if result.returncode != 0 or not out_path.exists():
         shutil.rmtree(tmpdir, ignore_errors=True)
-        raise ValueError("Falha ao converter DOC para DOCX. Verifique o arquivo enviado.")
+        raise ValueError("Falha ao converter arquivo para PDF. Verifique se o DOC/DOCX está legível.")
     return out_path
 
 
@@ -190,14 +207,12 @@ def _extract_text(source: Path) -> str:
     suffix = source.suffix.lower()
     if suffix == ".pdf":
         return normalize_text(_extract_text_from_pdf(source))
-    if suffix == ".docx":
-        return normalize_text(_extract_text_from_docx(source))
-    if suffix == ".doc":
-        converted = _convert_doc_to_docx(source)
+    if suffix in (".docx", ".doc"):
+        pdf_path = _convert_to_pdf(source)
         try:
-            return normalize_text(_extract_text_from_docx(converted))
+            return normalize_text(_extract_text_from_pdf(pdf_path))
         finally:
-            shutil.rmtree(converted.parent, ignore_errors=True)
+            shutil.rmtree(pdf_path.parent, ignore_errors=True)
 
     raise ValueError("Formato não suportado. Envie PDF, DOC ou DOCX.")
 

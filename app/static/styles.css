@@ -243,6 +243,7 @@ label {
 
 input, select, textarea {
   width: 100%;
+  min-width: 0;
   border-radius: 12px;
   border: 1px solid var(--field-border);
   background: var(--field-bg);

@@ -5,12 +5,14 @@ import uuid
 from datetime import date
 from pathlib import Path
 from typing import Literal, Optional
+from tempfile import NamedTemporaryFile
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.settings import settings
+from app.services.anexo1_import import extract_prefill_from_anexo1
 from app.services.validate_anexo1 import validate_and_enrich_anexo1
 from app.services.validate_anexo2 import validate_and_enrich_anexo2
 from app.services.docx_render import render_docx_from_template
@@ -84,6 +86,37 @@ def preview_anexo1(payload: dict):
 def preview_anexo2(payload: dict):
     enriched = validate_and_enrich_anexo2(payload)
     return enriched
+
+
+@app.post("/api/anexo2/prefill-from-anexo1")
+async def prefill_anexo2_from_anexo1(file: UploadFile = File(...)):
+    if not file.filename:
+        raise HTTPException(400, "Envie o arquivo do Anexo I preenchido em PDF, DOC ou DOCX.")
+
+    suffix = Path(file.filename).suffix.lower()
+    if suffix not in (".pdf", ".docx", ".doc"):
+        raise HTTPException(400, "Formato não suportado. Use PDF, DOC ou DOCX do Anexo I.")
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(400, "Arquivo vazio. Verifique se o Anexo I foi exportado corretamente.")
+
+    tmp_path = None
+    try:
+        with NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            tmp.write(content)
+            tmp_path = Path(tmp.name)
+
+        result = extract_prefill_from_anexo1(tmp_path)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    except Exception:
+        raise HTTPException(400, "Não foi possível extrair dados do Anexo I. Confirme se o arquivo está legível.")
+    finally:
+        if tmp_path:
+            tmp_path.unlink(missing_ok=True)
+
+    return {"ok": True, "prefill": result.prefill, "warnings": result.warnings, "filename": file.filename}
 
 @app.post("/api/anexo1/generate")
 def generate_anexo1(payload: dict, format: Literal["docx", "pdf"] = Query("docx")):

@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <link rel="icon" type="image/png" sizes="64x64" href="/static/favicon.png"/>
   <link rel="stylesheet" href="/static/styles.css"/>
   <title>ANEXO II • Relatório</title>
 </head>
@@ -11,7 +12,7 @@
 
   <div class="topbar">
     <div class="brand">
-      <img src="/static/brasao-ufpb.svg" alt="Brasão UFPB" class="brand-logo">
+      <img src="/static/brasao.png" alt="Brasão UFPB" class="brand-logo">
       <div>
         <h1>ANEXO II • Relatório de Viagem</h1>
         <p>Preenchimento guiado com validação e geração DOCX/PDF</p>
@@ -29,10 +30,30 @@
 
     </div>
   </div>
-  <div id="anexo2Issues" class="card" style="display:none; margin:12px 0; padding:12px;">
+<div id="anexo2Issues" class="card" style="display:none; margin:12px 0; padding:12px;">
   <h3 style="margin:0 0 8px 0;">Revisão automática</h3>
   <div class="helper" id="anexo2IssuesText"></div>
 </div>
+
+  <div class="card" id="importAnexo1Card">
+    <div class="card-header">
+      <div>
+        <h2>Importar dados do Anexo I</h2>
+        <div class="meta">Envie o Anexo I preenchido (PDF/DOC/DOCX) para preencher este relatório automaticamente.</div>
+      </div>
+      <span id="importBadge" class="badge">Opcional</span>
+    </div>
+    <div class="row" style="gap:10px; flex-wrap:wrap;">
+      <input id="inputAnexo1" type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+      <button type="button" class="btn" id="btnImportAnexo1">Ler arquivo</button>
+      <div id="importProgress" class="progress-indicator" style="display:none;">
+        <div class="spinner" aria-hidden="true"></div>
+        <span data-progress-text>Interpretando Anexo I...</span>
+      </div>
+    </div>
+    <div class="helper" id="importHelper">Usamos Docling para extrair nome, CPF, SIAPE, trechos e motivo da viagem.</div>
+    <div class="helper" id="importWarnings" style="display:none;"></div>
+  </div>
 
 
   <div class="card">

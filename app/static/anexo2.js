@@ -268,6 +268,14 @@ orgTipoEl.addEventListener("change", () => {
   if(!show) document.getElementById("org_det").value = "";
 });
 
+function applyPrefillAnexo2(prefill){
+  if(!prefill || typeof prefill !== "object") return;
+  applyPayloadToFormByNameAnexo2(prefill);
+  if(orgTipoEl) orgTipoEl.dispatchEvent(new Event("change"));
+  refreshAutoFlags();
+  renderReview();
+}
+
 /* Payload build */
 function normalizeDT(s){
   if(!s) return s;
@@ -465,6 +473,88 @@ async function generate(format){
     setGenProgress(false);
   }
 }
+
+/* Importação a partir do Anexo I (Docling) */
+const importInput = document.getElementById("inputAnexo1");
+const importBtn = document.getElementById("btnImportAnexo1");
+const importBadge = document.getElementById("importBadge");
+const importHelper = document.getElementById("importHelper");
+const importWarnings = document.getElementById("importWarnings");
+const importProgress = document.getElementById("importProgress");
+
+function setImportBadge(text, kind){
+  if(!importBadge) return;
+  importBadge.textContent = text;
+  importBadge.className = "badge" + (kind ? " " + kind : "");
+}
+
+function setImportProgress(show, msg){
+  if(!importProgress) return;
+  importProgress.style.display = show ? "inline-flex" : "none";
+  const t = importProgress.querySelector("[data-progress-text]");
+  if(t && msg) t.textContent = msg;
+}
+
+function renderImportWarnings(list){
+  if(!importWarnings) return;
+  if(!list || !list.length){
+    importWarnings.style.display = "none";
+    importWarnings.textContent = "";
+    return;
+  }
+  importWarnings.style.display = "block";
+  importWarnings.textContent = list.map(w => `• ${w}`).join(" ");
+}
+
+async function handleImportAnexo1(){
+  if(!importInput || !importInput.files || !importInput.files.length){
+    setImportBadge("Selecione o arquivo", "warn");
+    if(importHelper) importHelper.textContent = "Escolha o PDF/DOC/DOCX do Anexo I preenchido para importar.";
+    return;
+  }
+
+  setImportBadge("Lendo arquivo...", "");
+  setImportProgress(true, "Interpretando Anexo I...");
+  renderImportWarnings(null);
+
+  try{
+    const fd = new FormData();
+    fd.append("file", importInput.files[0]);
+
+    const res = await fetch("/api/anexo2/prefill-from-anexo1", { method:"POST", body: fd });
+    const json = await res.json().catch(() => null);
+
+    if(!res.ok || !json || !json.prefill){
+      setImportBadge("Falhou", "danger");
+      const detail = (json && json.detail) ? json.detail : "Não foi possível ler o arquivo.";
+      if(importHelper) importHelper.textContent = typeof detail === "string" ? detail : "Não foi possível ler o arquivo.";
+      return;
+    }
+
+    applyPrefillAnexo2(json.prefill);
+    setImportBadge("Pré-preenchido", "success");
+    if(importHelper){
+      const baseMsg = json.filename ? `Dados importados de ${json.filename}.` : "Dados importados do Anexo I.";
+      importHelper.textContent = `${baseMsg} Revise os campos antes de gerar o relatório.`;
+    }
+    renderImportWarnings(json.warnings || []);
+
+    // mostra inconsistências já calculadas
+    const issues = validatePayloadAnexo2(formToJSON());
+    showIssuesAnexo2(issues);
+  }catch(e){
+    setImportBadge("Erro", "danger");
+    if(importHelper) importHelper.textContent = "Falha ao enviar o arquivo. Tente novamente.";
+  }finally{
+    setImportProgress(false);
+  }
+}
+
+if(importBtn) importBtn.addEventListener("click", handleImportAnexo1);
+if(importInput) importInput.addEventListener("change", () => {
+  setImportBadge("Pronto para importar", "");
+  renderImportWarnings(null);
+});
 
 
 /* =========================

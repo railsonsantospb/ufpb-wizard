@@ -10,13 +10,19 @@
   <div class="container">
     <div class="topbar">
       <div class="brand">
-        <div class="brand-badge" aria-hidden="true"></div>
+        <img src="/static/brasao-ufpb.svg" alt="Brasão UFPB" class="brand-logo">
         <div>
           <h1>UFPB • Assistente de Diárias e Relatórios</h1>
           <p>Preenchimento guiado, validação automática e geração DOCX/PDF.</p>
         </div>
       </div>
       <div class="actions">
+        <button type="button" class="btn btn-ghost" data-theme-toggle aria-pressed="false">Modo claro</button>
+        <div class="font-controls" aria-label="Ajuste de fonte">
+          <button type="button" class="btn btn-ghost btn-compact" data-font-dec aria-label="Diminuir fonte">A-</button>
+          <span class="pill font-pill" data-font-display>100%</span>
+          <button type="button" class="btn btn-ghost btn-compact" data-font-inc aria-label="Aumentar fonte">A+</button>
+        </div>
         <span class="pill">Portável • Navegador</span>
         <a class="btn btn-ghost" href="https://www.ufpb.br/" target="_blank" rel="noreferrer">UFPB</a>
       </div>
@@ -45,9 +51,43 @@
       </div>
     </div>
 
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Como preencher sem erros</h2>
+          <div class="meta">Orientações rápidas para completar cada formulário.</div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="card" style="margin:0;">
+          <h3>ANEXO I • Requisição</h3>
+          <ul>
+            <li>Defina o tipo (diárias, passagens ou ambos) e a data da solicitação antes de avançar.</li>
+            <li>Tenha em mãos dados pessoais e bancários completos do servidor.</li>
+            <li>Registre ida e retorno com data/hora e o período da missão (início e término).</li>
+            <li>Informe meios de transporte e preencha justificativas para fim de semana/feriado ou fora do prazo.</li>
+            <li>No passo 9 revise o resumo: ele destaca itens pendentes e evita erros no DOCX/PDF.</li>
+          </ul>
+        </div>
+
+        <div class="card" style="margin:0;">
+          <h3>ANEXO II • Relatório</h3>
+          <ul>
+            <li>Use a data de emissão do relatório e preencha nome, CPF e SIAPE do proposto.</li>
+            <li>Escolha o órgão; se for Projetos ou Outros, detalhe o nome do projeto/unidade.</li>
+            <li>Informe ida e retorno (data/hora) garantindo que o retorno não seja anterior à ida.</li>
+            <li>Descreva as atividades realizadas e a situação da viagem (SIM ou NÃO).</li>
+            <li>Revise o resumo final: ele aponta inconsistências antes de gerar o documento.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
     <div class="footer">
       Dica: mantenha os templates com placeholders (snake_case) em <code>app/templates</code>.
     </div>
   </div>
+  <script src="/static/theme.js" defer></script>
 </body>
 </html>

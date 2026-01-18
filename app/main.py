@@ -59,6 +59,11 @@ def create_draft(kind: Literal["anexo1", "anexo2"]):
     _save_draft(draft_id, {"kind": kind, "created_at": str(date.today()), "data": {}})
     return {"draft_id": draft_id}
 
+@app.get("/api/server-date")
+def server_date():
+    # data atual do servidor (YYYY-MM-DD) para preencher campos padrão no front
+    return {"date": str(date.today())}
+
 @app.get("/api/drafts/{draft_id}")
 def get_draft(draft_id: str):
     return _load_draft(draft_id)

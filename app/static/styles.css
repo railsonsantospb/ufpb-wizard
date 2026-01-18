@@ -87,6 +87,7 @@ a:hover { text-decoration: underline; }
   justify-content: space-between;
   gap: 12px;
   margin: 6px 0 18px;
+  flex-wrap: wrap;
 }
 
 .brand {
@@ -123,6 +124,7 @@ a:hover { text-decoration: underline; }
   display: flex;
   gap: 10px;
   align-items: center;
+  flex-wrap: wrap;
 }
 .font-controls {
   display: inline-flex;
@@ -211,6 +213,25 @@ h3 {
 @media (min-width: 820px) {
   .grid { grid-template-columns: 1fr 1fr; }
   .grid2 { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 780px) {
+  .topbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .actions {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 8px;
+  }
+  .brand-logo {
+    width: 56px;
+    height: 56px;
+  }
+  .brand h1 {
+    font-size: calc((var(--fs-base) - 2px) * var(--font-scale));
+  }
 }
 
 label {
@@ -386,4 +407,9 @@ hr.sep {
   margin-top: 18px;
   color: var(--muted);
   font-size: calc(var(--fs-sm) * var(--font-scale));
+}
+
+pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }

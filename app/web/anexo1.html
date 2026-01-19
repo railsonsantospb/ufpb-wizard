@@ -51,8 +51,26 @@
           <div id="progressBar" class="progress-bar"></div>
         </div>
       </div>
+    </div>
 
-      <div id="errors" class="errors" style="display:none;"></div>
+    <div class="card" id="importAnexo1CardSelf">
+      <div class="card-header">
+        <div>
+          <h2>Importar dados de um Anexo I preenchido</h2>
+          <div class="meta">Reutilize um Anexo I (PDF/DOC/DOCX) para preencher este formulário automaticamente.</div>
+        </div>
+        <span id="importSelfBadge" class="badge">Opcional</span>
+      </div>
+      <div class="row" style="gap:10px; flex-wrap:wrap;">
+        <input id="inputAnexo1Self" type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+        <button type="button" class="btn" id="btnImportAnexo1Self">Ler arquivo</button>
+        <div id="importSelfProgress" class="progress-indicator" style="display:none;">
+          <div class="spinner" aria-hidden="true"></div>
+          <span data-progress-text>Interpretando Anexo I...</span>
+        </div>
+      </div>
+      <div class="helper" id="importSelfHelper">Selecione o Anexo I preenchido para reaproveitar os dados.</div>
+      <div class="helper" id="importSelfWarnings" style="display:none;"></div>
     </div>
 
     <form id="wizardForm" novalidate>
@@ -71,7 +89,8 @@
         </select>
 
         <label>Data da solicitação</label>
-        <input name="data_solicitacao" type="date" required>
+        <input id="dataSolicDisplay" type="text" inputmode="numeric" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" placeholder="dd/mm/aaaa" required style="width:100%;">
+        <input name="data_solicitacao" type="hidden">
 
         <div class="helper">
           O sistema calculará automaticamente “fora do prazo” com base na data da ida.
@@ -85,11 +104,11 @@
         <div class="grid2">
           <div>
             <label>Nome completo</label>
-            <input name="servidor.nome_completo" required>
+            <input name="servidor.nome_completo" required placeholder="Ex.: João da Silva">
           </div>
           <div>
             <label>Cargo/Função</label>
-            <input name="servidor.cargo_funcao" required>
+            <input name="servidor.cargo_funcao" required placeholder="Ex.: Professor Adjunto">
           </div>
           <div>
             <label>CPF (somente números)</label>
@@ -98,19 +117,20 @@
           </div>
           <div>
             <label>RG</label>
-            <input name="servidor.rg" required>
+            <input name="servidor.rg" required placeholder="Ex.: 1234567 SSP/UF">
           </div>
           <div>
             <label>Data de nascimento</label>
-            <input name="servidor.data_nascimento" type="date" required>
+          <input id="dataNascDisplay" type="text" inputmode="numeric" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" placeholder="dd/mm/aaaa" required>
+          <input name="servidor.data_nascimento" type="hidden">
           </div>
           <div>
             <label>SIAPE (somente números)</label>
-            <input name="servidor.siape" inputmode="numeric" pattern="[0-9]{4,15}" required>
+            <input name="servidor.siape" inputmode="numeric" pattern="[0-9]{4,15}" required placeholder="Ex.: 123456">
           </div>
           <div>
             <label>Nome da mãe</label>
-            <input name="servidor.nome_mae" required>
+            <input name="servidor.nome_mae" required placeholder="Ex.: Maria de Souza Silva">
           </div>
           <div>
             <label>Telefone (somente números)</label>
@@ -119,23 +139,23 @@
           </div>
           <div style="grid-column:1/-1;">
             <label>Endereço</label>
-            <input name="servidor.endereco" required>
+            <input name="servidor.endereco" required placeholder="Ex.: Rua X, 123 - Bairro - Cidade/UF">
           </div>
           <div style="grid-column:1/-1;">
             <label>E-mail</label>
-            <input name="servidor.email" type="email" required>
+            <input name="servidor.email" type="email" required placeholder="Ex.: nome@instituicao.br">
           </div>
           <div>
             <label>Banco</label>
-            <input name="servidor.dados_bancarios.banco" required placeholder="Ex.: 001">
+            <input name="servidor.dados_bancarios.banco" required placeholder="Ex.: 001 (Banco do Brasil)">
           </div>
           <div>
             <label>Agência</label>
-            <input name="servidor.dados_bancarios.agencia" inputmode="numeric" pattern="[0-9]{1,10}" required>
+            <input name="servidor.dados_bancarios.agencia" inputmode="numeric" pattern="[0-9]{1,10}" required placeholder="Ex.: 1234-5">
           </div>
           <div>
             <label>Conta</label>
-            <input name="servidor.dados_bancarios.conta" inputmode="numeric" pattern="[0-9]{1,20}" required>
+            <input name="servidor.dados_bancarios.conta" inputmode="numeric" pattern="[0-9]{1,20}" required placeholder="Ex.: 12345-6">
           </div>
         </div>
       </section>
@@ -156,15 +176,15 @@
         <div class="grid2">
           <div>
             <label>Origem</label>
-            <input name="trechos.ida.origem" required>
+            <input name="trechos.ida.origem" required placeholder="Ex.: João Pessoa/PB">
           </div>
           <div>
             <label>Destino</label>
-            <input name="trechos.ida.destino" required>
+            <input name="trechos.ida.destino" required placeholder="Ex.: Recife/PE">
           </div>
           <div style="grid-column:1/-1;">
             <label>Data e hora da ida</label>
-            <input name="trechos.ida.data_hora" type="datetime-local" required>
+            <input name="trechos.ida.data_hora" type="datetime-local" required placeholder="dd/mm/aaaa hh:mm">
           </div>
         </div>
       </section>
@@ -176,15 +196,15 @@
         <div class="grid2">
           <div>
             <label>Origem</label>
-            <input name="trechos.retorno.origem" required>
+            <input name="trechos.retorno.origem" required placeholder="Ex.: Recife/PE">
           </div>
           <div>
             <label>Destino</label>
-            <input name="trechos.retorno.destino" required>
+            <input name="trechos.retorno.destino" required placeholder="Ex.: João Pessoa/PB">
           </div>
           <div style="grid-column:1/-1;">
             <label>Data e hora do retorno</label>
-            <input name="trechos.retorno.data_hora" type="datetime-local" required>
+            <input name="trechos.retorno.data_hora" type="datetime-local" required placeholder="dd/mm/aaaa hh:mm">
           </div>
         </div>
         <div class="helper">Regra: retorno não pode ser anterior à ida.</div>
@@ -197,11 +217,11 @@
         <div class="grid2">
           <div>
             <label>Início da missão</label>
-            <input name="missao.inicio_data_hora" type="datetime-local" required>
+            <input name="missao.inicio_data_hora" type="datetime-local" required placeholder="dd/mm/aaaa hh:mm">
           </div>
           <div>
             <label>Término da missão</label>
-            <input name="missao.termino_data_hora" type="datetime-local" required>
+            <input name="missao.termino_data_hora" type="datetime-local" required placeholder="dd/mm/aaaa hh:mm">
           </div>
         </div>
         <div class="helper">
@@ -342,6 +362,7 @@
       </section>
 
       <!-- Navigation -->
+      <div id="errors" class="errors" style="display:none; margin-top:0;"></div>
       <div class="card">
         <div class="row">
           <button type="button" class="btn btn-ghost" id="btnBack">Voltar</button>
@@ -386,7 +407,7 @@
         </div>
 
         <div id="chatFullDateRow" class="row" style="margin-top:10px; display:none;">
-          <input id="chatFullDate" type="date">
+          <input id="chatFullDate" type="text" inputmode="numeric" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" placeholder="dd/mm/aaaa">
           <button type="button" class="btn btn-primary" id="chatFullDateOk">OK</button>
         </div>
 

@@ -2,6 +2,17 @@ function applyPayloadToFormByName(payload) {
       if (!payload || typeof payload !== "object") return;
 
       const setField = (name, value) => {
+        if (name === "data_solicitacao" && dataSolicMirror) {
+          const iso = parseDateBRToISO(value) || "";
+          dataSolicMirror.sync(iso, true);
+          return;
+        }
+        if (name === "servidor.data_nascimento" && dataNascMirror) {
+          const iso = parseDateBRToISO(value) || "";
+          dataNascMirror.sync(iso, true);
+          return;
+        }
+
         const el = document.querySelector(`[name="${name}"]`);
         if (!el) return;
 
@@ -101,6 +112,14 @@ function applyPayloadToFormByName(payload) {
     const elErrors = document.getElementById("errors");
     const statusBadge = document.getElementById("statusBadge");
     const elGenProgress = document.getElementById("generateProgress");
+    const dataSolicMirror = bindBrDateField("#dataSolicDisplay", '[name="data_solicitacao"]', () => refreshAutoFlags());
+    const dataNascMirror = bindBrDateField("#dataNascDisplay", '[name="servidor.data_nascimento"]');
+    const importSelfInput = document.getElementById("inputAnexo1Self");
+    const importSelfBtn = document.getElementById("btnImportAnexo1Self");
+    const importSelfBadge = document.getElementById("importSelfBadge");
+    const importSelfHelper = document.getElementById("importSelfHelper");
+    const importSelfWarnings = document.getElementById("importSelfWarnings");
+    const importSelfProgress = document.getElementById("importSelfProgress");
 
     function showErrors(msgs) {
       if (!msgs || !msgs.length) {
@@ -123,6 +142,71 @@ function applyPayloadToFormByName(payload) {
       if (t) t.textContent = msg || "Gerando documento...";
     }
 
+    /* ---------------- Importar Anexo I preenchido ---------------- */
+    function setImportSelfBadge(text, kind) {
+      if (!importSelfBadge) return;
+      importSelfBadge.textContent = text;
+      importSelfBadge.className = "badge" + (kind ? " " + kind : "");
+    }
+    function setImportSelfProgress(show, msg) {
+      if (!importSelfProgress) return;
+      importSelfProgress.style.display = show ? "inline-flex" : "none";
+      const t = importSelfProgress.querySelector("[data-progress-text]");
+      if (t && msg) t.textContent = msg;
+    }
+    function renderImportSelfWarnings(list) {
+      if (!importSelfWarnings) return;
+      if (!list || !list.length) {
+        importSelfWarnings.style.display = "none";
+        importSelfWarnings.textContent = "";
+        return;
+      }
+      importSelfWarnings.style.display = "block";
+      importSelfWarnings.textContent = list.map(w => `• ${w}`).join(" ");
+    }
+
+    async function handleImportAnexo1Self() {
+      if (!importSelfInput || !importSelfInput.files || !importSelfInput.files.length) {
+        setImportSelfBadge("Selecione o arquivo", "warn");
+        if (importSelfHelper) importSelfHelper.textContent = "Escolha o PDF/DOC/DOCX do Anexo I preenchido para importar.";
+        return;
+      }
+
+      setImportSelfBadge("Lendo arquivo...", "");
+      setImportSelfProgress(true, "Interpretando Anexo I...");
+      renderImportSelfWarnings(null);
+
+      try {
+        const fd = new FormData();
+        fd.append("file", importSelfInput.files[0]);
+
+        const res = await fetch("/api/anexo1/prefill-from-anexo1", { method: "POST", body: fd });
+        const json = await res.json().catch(() => null);
+
+        if (!res.ok || !json || !json.prefill) {
+          setImportSelfBadge("Falhou", "danger");
+          const detail = (json && json.detail) ? json.detail : "Não foi possível ler o arquivo.";
+          if (importSelfHelper) importSelfHelper.textContent = typeof detail === "string" ? detail : "Não foi possível ler o arquivo.";
+          return;
+        }
+
+        applyPrefill(json.prefill);
+        refreshAutoFlags();
+        renderReview();
+        setImportSelfBadge("Pré-preenchido", "success");
+        if (importSelfHelper) {
+          const baseMsg = json.filename ? `Dados importados de ${json.filename}.` : "Dados importados do Anexo I.";
+          importSelfHelper.textContent = `${baseMsg} Revise antes de gerar.`;
+        }
+        renderImportSelfWarnings(json.warnings || []);
+      } catch (e) {
+        setImportSelfBadge("Erro", "danger");
+        if (importSelfHelper) importSelfHelper.textContent = "Falha ao enviar o arquivo. Tente novamente.";
+      } finally {
+        setImportSelfProgress(false);
+      }
+    }
+
     function gotoStep(n) {
       current = Math.max(1, Math.min(total, n));
       steps.forEach(s => s.style.display = (Number(s.dataset.step) === current) ? "block" : "none");
@@ -135,7 +219,11 @@ function applyPayloadToFormByName(payload) {
       elBar.style.width = `${Math.round((current - 1) / (total - 1) * 100)}%`;
 
       document.getElementById("btnBack").disabled = current === 1;
-      document.getElementById("btnNext").textContent = (current === total) ? "Finalizar" : "Avançar";
+      const btnNext = document.getElementById("btnNext");
+      if (btnNext) {
+        btnNext.textContent = "Avançar";
+        btnNext.style.display = (current === total) ? "none" : "inline-flex";
+      }
 
       showErrors(null);
 
@@ -183,6 +271,14 @@ function applyPayloadToFormByName(payload) {
           if (el.value && !re.test(el.value)) {
             ok = false;
             msgs.push("Informe um valor válido.");
+            el.focus();
+            break;
+          }
+        }
+        if (el.id === "dataSolicDisplay" || el.id === "dataNascDisplay") {
+          if (el.value && !parseDateBRToISO(el.value)) {
+            ok = false;
+            msgs.push("Use o formato dd/mm/aaaa.");
             el.focus();
             break;
           }
@@ -374,6 +470,8 @@ function applyPayloadToFormByName(payload) {
       m.textRow.style.display = mode === "text" ? "flex" : "none";
       m.dateRow.style.display = mode === "date" ? "flex" : "none";
       m.dtRow.style.display = mode === "datetime" ? "flex" : "none";
+      if (mode === "date" && m.date) m.date.value = "";
+      if (mode === "datetime" && m.dt) m.dt.value = "";
     }
 
     function setQuick(buttons) {
@@ -427,6 +525,59 @@ function applyPayloadToFormByName(payload) {
       return Math.round((b - a) / (1000 * 60 * 60 * 24));
     }
 
+    function formatDateBR(value) {
+      if (!value) return "";
+      const str = String(value);
+      const m = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      return m ? `${m[3]}/${m[2]}/${m[1]}` : str;
+    }
+
+    function formatDateTimeBR(value) {
+      if (!value) return "";
+      const str = String(value);
+      const m = str.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s])?(\d{2}):(\d{2})/);
+      if (m) return `${m[3]}/${m[2]}/${m[1]} ${m[4]}:${m[5]}`;
+      return formatDateBR(str);
+    }
+
+    function parseDateBRToISO(value) {
+      if (!value) return "";
+      const str = String(value).trim();
+      const br = str.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      if (br) {
+        const d = Number(br[1]);
+        const m = Number(br[2]);
+        if (d >= 1 && d <= 31 && m >= 1 && m <= 12) return `${br[3]}-${br[2]}-${br[1]}`;
+        return "";
+      }
+      const iso = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      return iso ? `${iso[1]}-${iso[2]}-${iso[3]}` : "";
+    }
+
+    function bindBrDateField(displaySelector, hiddenSelector, onChange) {
+      const display = document.querySelector(displaySelector);
+      const hidden = document.querySelector(hiddenSelector);
+      if (!display || !hidden) return null;
+
+      const sync = (iso, force = false) => {
+        if (force || !hidden.value) hidden.value = iso || "";
+        if (force || !display.value) display.value = iso ? formatDateBR(iso) : "";
+      };
+
+      const propagate = () => {
+        const iso = parseDateBRToISO(display.value);
+        hidden.value = iso;
+        if (typeof onChange === "function") onChange(iso);
+      };
+
+      display.addEventListener("input", propagate);
+      display.addEventListener("blur", () => {
+        if (hidden.value) display.value = formatDateBR(hidden.value);
+      });
+
+      return { sync };
+    }
+
     function computeFlags() {
       const d = chatFull.data;
       const idaDT = d.trechos.ida.data_hora; // datetime-local
@@ -455,25 +606,35 @@ function applyPayloadToFormByName(payload) {
     // Busca a data atual no servidor e aplica no formulário/chat, impedindo edição manual
     async function setDataSolicitacaoFromServer() {
       const formEl = document.querySelector('[name="data_solicitacao"]');
+      const displayEl = document.getElementById("dataSolicDisplay");
       const guidedEl = document.getElementById("g_data_sol");
-      const hadExistingValue = !!(formEl?.value || guidedEl?.value);
+      const hadExistingValue = !!(formEl?.value || guidedEl?.value || displayEl?.value);
 
       const applyValue = (val, force = false) => {
-        const el = document.querySelector('[name="data_solicitacao"]');
-        if (el) {
-          if (force || !el.value) el.value = val;
-          el.readOnly = true;
-          el.setAttribute("aria-readonly", "true");
-          el.classList.add("readonly");
+        const iso = parseDateBRToISO(val);
+        if (!iso) return;
+
+        if (dataSolicMirror) dataSolicMirror.sync(iso, force);
+        if (formEl) {
+          if (force || !formEl.value) formEl.value = iso;
+          formEl.readOnly = true;
+          formEl.setAttribute("aria-readonly", "true");
+          formEl.classList.add("readonly");
+        }
+        if (displayEl) {
+          if (force || !displayEl.value) displayEl.value = formatDateBR(iso);
+          displayEl.readOnly = true;
+          displayEl.setAttribute("aria-readonly", "true");
+          displayEl.classList.add("readonly");
         }
         if (guidedEl) {
-          if (force || !guidedEl.value) guidedEl.value = val;
+          if (force || !guidedEl.value) guidedEl.value = formatDateBR(iso);
           guidedEl.readOnly = true;
           guidedEl.setAttribute("aria-readonly", "true");
           guidedEl.classList.add("readonly");
         }
         if (force || !chatFull.data.data_solicitacao) {
-          chatFull.data.data_solicitacao = (el?.value || guidedEl?.value || val);
+          chatFull.data.data_solicitacao = (formEl?.value || guidedEl?.value || iso);
         }
       };
 
@@ -544,7 +705,8 @@ function applyPayloadToFormByName(payload) {
         const preset = d.data_solicitacao || (document.querySelector('[name="data_solicitacao"]')?.value);
         if (preset) {
           d.data_solicitacao = preset;
-          addBubble("bot", `Usei a data da solicitação automática: ${preset}.`);
+          const presetDisplay = formatDateBR(preset) || preset;
+          addBubble("bot", `Usei a data da solicitação automática: ${presetDisplay}.`);
           chatFull.state = "servidor.nome_completo";
           ask();
           return;
@@ -770,19 +932,21 @@ function applyPayloadToFormByName(payload) {
       if (s === "summary") {
         computeFlags();
         const f = d.flags;
+        const fmtDate = (v) => formatDateBR(v) || "—";
+        const fmtDT = (v) => formatDateTimeBR(v) || "—";
 
         const resumo =
           `Resumo para aplicar no formulário:
 • Tipo: ${d.tipo_solicitacao}
-• Data solicitação: ${d.data_solicitacao}
+• Data solicitação: ${fmtDate(d.data_solicitacao)}
 
 • Servidor: ${d.servidor.nome_completo} | ${d.servidor.cargo_funcao}
 • CPF: ${d.servidor.cpf ? (d.servidor.cpf.slice(0, 3) + "***" + d.servidor.cpf.slice(-2)) : "—"} | SIAPE: ${d.servidor.siape}
 
-• Ida: ${d.trechos.ida.origem} → ${d.trechos.ida.destino} | ${d.trechos.ida.data_hora}
-• Retorno: ${d.trechos.retorno.origem} → ${d.trechos.retorno.destino} | ${d.trechos.retorno.data_hora}
+• Ida: ${d.trechos.ida.origem} → ${d.trechos.ida.destino} | ${fmtDT(d.trechos.ida.data_hora)}
+• Retorno: ${d.trechos.retorno.origem} → ${d.trechos.retorno.destino} | ${fmtDT(d.trechos.retorno.data_hora)}
 
-• Missão: ${d.missao.inicio_data_hora} até ${d.missao.termino_data_hora}
+• Missão: ${fmtDT(d.missao.inicio_data_hora)} até ${fmtDT(d.missao.termino_data_hora)}
 • Débito: ${d.debito_recurso.tipo}${d.debito_recurso.detalhe ? " (" + d.debito_recurso.detalhe + ")" : ""}
 • Transporte: ${d.transporte.meios.join(", ")}${d.transporte.meios.includes("veiculo_proprio") ? (" | termo: " + (d.transporte.termo_veiculo_proprio_ciente ? "ciente" : "NÃO")) : ""}
 
@@ -1018,15 +1182,21 @@ Depois disso, você pode revisar os campos no formulário e gerar o DOC/PDF.`;
     /* Handlers dos pickers (date/datetime) */
     m.dateOk.addEventListener("click", () => {
       const v = m.date.value;
-      if (!v) return;
-      addBubble("user", v);
+      const iso = parseDateBRToISO(v);
+      if (!iso) {
+        addBubble("bot", "Formato esperado: dd/mm/aaaa.");
+        return;
+      }
+      const display = formatDateBR(iso) || iso;
+      m.date.value = display;
+      addBubble("user", display);
 
       if (chatFull.state === "data_solicitacao") {
-        reply("data_solicitacao", v);
+        reply("data_solicitacao", iso);
         return;
       }
       if (chatFull.state === "servidor.data_nascimento") {
-        chatFull.data.servidor.data_nascimento = v;
+        chatFull.data.servidor.data_nascimento = iso;
         chatFull.state = "servidor.siape";
         ask();
         return;
@@ -1230,10 +1400,11 @@ Depois disso, você pode revisar os campos no formulário e gerar o DOC/PDF.`;
         // resumo simples (mascara CPF)
         const cpf = payload?.servidor?.cpf || "";
         const cpfMask = cpf && cpf.length === 11 ? (cpf.slice(0, 3) + "***" + cpf.slice(-2)) : "—";
+        const fmtDT = (v) => formatDateTimeBR(v) || "—";
         downloadSummary.textContent =
           `Servidor: ${payload?.servidor?.nome_completo || "—"} | CPF: ${cpfMask}\n` +
-          `Ida: ${payload?.trechos?.ida?.origem || "—"} → ${payload?.trechos?.ida?.destino || "—"} | ${payload?.trechos?.ida?.data_hora || "—"}\n` +
-          `Retorno: ${payload?.trechos?.retorno?.origem || "—"} → ${payload?.trechos?.retorno?.destino || "—"} | ${payload?.trechos?.retorno?.data_hora || "—"}`;
+          `Ida: ${payload?.trechos?.ida?.origem || "—"} → ${payload?.trechos?.ida?.destino || "—"} | ${fmtDT(payload?.trechos?.ida?.data_hora)}\n` +
+          `Retorno: ${payload?.trechos?.retorno?.origem || "—"} → ${payload?.trechos?.retorno?.destino || "—"} | ${fmtDT(payload?.trechos?.retorno?.data_hora)}`;
 
         downloadModal.style.display = "block";
       }
@@ -1582,21 +1753,23 @@ Depois disso, você pode revisar os campos no formulário e gerar o DOC/PDF.`;
       refreshAutoFlags();
 
       const p = formToJSON();
+      const fmtDate = (v) => formatDateBR(v) || "—";
+      const fmtDT = (v) => formatDateTimeBR(v) || "—";
       const resumo = [
         "Resumo amigável:",
         "",
-        `• Tipo: ${p.tipo_solicitacao || "—"} | Solicitação: ${p.data_solicitacao || "—"}`,
+        `• Tipo: ${p.tipo_solicitacao || "—"} | Solicitação: ${fmtDate(p.data_solicitacao)}`,
         "",
         "Servidor:",
         `• ${p.servidor?.nome_completo || "—"} | Cargo: ${p.servidor?.cargo_funcao || "—"}`,
         `• CPF: ${p.servidor?.cpf || "—"} | SIAPE: ${p.servidor?.siape || "—"} | E-mail: ${p.servidor?.email || "—"}`,
         "",
         "Viagem:",
-        `• Ida: ${p.trechos?.ida?.origem || "—"} → ${p.trechos?.ida?.destino || "—"} (${p.trechos?.ida?.data_hora || "—"})`,
-        `• Retorno: ${p.trechos?.retorno?.origem || "—"} → ${p.trechos?.retorno?.destino || "—"} (${p.trechos?.retorno?.data_hora || "—"})`,
+        `• Ida: ${p.trechos?.ida?.origem || "—"} → ${p.trechos?.ida?.destino || "—"} (${fmtDT(p.trechos?.ida?.data_hora)})`,
+        `• Retorno: ${p.trechos?.retorno?.origem || "—"} → ${p.trechos?.retorno?.destino || "—"} (${fmtDT(p.trechos?.retorno?.data_hora)})`,
         "",
         "Missão:",
-        `• Início: ${p.missao?.inicio_data_hora || "—"} | Término: ${p.missao?.termino_data_hora || "—"}`,
+        `• Início: ${fmtDT(p.missao?.inicio_data_hora)} | Término: ${fmtDT(p.missao?.termino_data_hora)}`,
         "",
         "Recurso:",
         `• Tipo: ${p.debito_recurso?.tipo || "—"} ${p.debito_recurso?.detalhe ? "• Detalhe: " + p.debito_recurso.detalhe : ""}`,
@@ -1724,12 +1897,7 @@ Depois disso, você pode revisar os campos no formulário e gerar o DOC/PDF.`;
       // validate current before advancing
       if (!validateStep(current)) return;
 
-      if (current === total) {
-        const ok = window.confirm("Deseja finalizar e limpar o formulário?");
-        if (!ok) return;
-        resetWizardToStart();
-        return;
-      }
+      if (current >= total) return;
       gotoStep(current + 1);
     });
 
@@ -1758,49 +1926,32 @@ Depois disso, você pode revisar os campos no formulário e gerar o DOC/PDF.`;
     gotoStep(1);
     setStatus("Rascunho", "");
 
+    if (importSelfBtn) importSelfBtn.addEventListener("click", handleImportAnexo1Self);
+    if (importSelfInput) importSelfInput.addEventListener("change", () => {
+      setImportSelfBadge("Pronto para importar", "");
+      renderImportSelfWarnings(null);
+      handleImportAnexo1Self();
+    });
+
 
     function applyPrefill(prefill) {
       if (!prefill || typeof prefill !== "object") return;
 
-      function setValue(name, val) {
-        const el = form.querySelector(`[name="${name}"]`);
-        if (!el) return;
+      // aplica de forma abrangente
+      applyPayloadToFormByName(prefill);
 
-        // datetime-local precisa de "YYYY-MM-DDTHH:MM"
-        if (el.type === "datetime-local" && typeof val === "string") {
-          el.value = val.slice(0, 16);
-          return;
-        }
-        el.value = val;
+      // ajustar UI condicional
+      const debTipoEl = document.getElementById("deb_tipo");
+      if (debTipoEl && prefill?.debito_recurso?.tipo) debTipoEl.dispatchEvent(new Event("change"));
+
+      const vp = document.getElementById("chkVeicProprio");
+      if (vp && prefill?.transporte?.meios) {
+        vp.checked = prefill.transporte.meios.includes("veiculo_proprio");
+        vp.dispatchEvent(new Event("change"));
       }
 
-      // motivo
-      if (prefill.motivo_viagem) setValue("motivo_viagem", prefill.motivo_viagem);
-
-      // trechos
-      if (prefill.trechos?.ida) {
-        if (prefill.trechos.ida.origem) setValue("trechos.ida.origem", prefill.trechos.ida.origem);
-        if (prefill.trechos.ida.destino) setValue("trechos.ida.destino", prefill.trechos.ida.destino);
-        if (prefill.trechos.ida.data_hora) setValue("trechos.ida.data_hora", prefill.trechos.ida.data_hora);
-      }
-      if (prefill.trechos?.retorno) {
-        if (prefill.trechos.retorno.origem) setValue("trechos.retorno.origem", prefill.trechos.retorno.origem);
-        if (prefill.trechos.retorno.destino) setValue("trechos.retorno.destino", prefill.trechos.retorno.destino);
-        if (prefill.trechos.retorno.data_hora) setValue("trechos.retorno.data_hora", prefill.trechos.retorno.data_hora);
-      }
-
-      // missão
-      if (prefill.missao) {
-        if (prefill.missao.inicio_data_hora) setValue("missao.inicio_data_hora", prefill.missao.inicio_data_hora);
-        if (prefill.missao.termino_data_hora) setValue("missao.termino_data_hora", prefill.missao.termino_data_hora);
-      }
-
-      // flags
-      if (typeof prefill.flags?.envolve_fds_feriado_ou_dia_anterior === "boolean") {
-        const v = prefill.flags.envolve_fds_feriado_ou_dia_anterior;
-        document.getElementById("flagFds").checked = v;
-        document.getElementById("wrapJustFds").style.display = v ? "block" : "none";
-      }
+      refreshAutoFlags();
+      renderReview();
     }
 
 
@@ -1894,7 +2045,7 @@ Depois disso, você pode revisar os campos no formulário e gerar o DOC/PDF.`;
           { value: "passagens", label: "Passagens" },
           { value: "diarias_e_passagens", label: "Diárias + Passagens" },
         ], a.tipo_solicitacao)}
-      ${input("g_data_sol", "Data da solicitação", "date", a.data_solicitacao)}
+      ${input("g_data_sol", "Data da solicitação", "text", formatDateBR(a.data_solicitacao), "dd/mm/aaaa")}
       <div class="helper">Prazo será verificado automaticamente pelo sistema (10/30 dias) usando a data da ida.</div>
     `;
         return;
@@ -2026,17 +2177,19 @@ Depois disso, você pode revisar os campos no formulário e gerar o DOC/PDF.`;
       }
 
       if (s === 6) {
+        const gDate = (v) => formatDateBR(v) || "—";
+        const gDT = (v) => formatDateTimeBR(v) || "—";
         // resumo
         guidedBody.innerHTML = `
       <h2>7) Revisão rápida</h2>
       <pre style="white-space:pre-wrap;margin:0;color:rgba(255,255,255,0.85);font-size:12.5px;">
 Tipo: ${a.tipo_solicitacao || "—"}
-Data solicitação: ${a.data_solicitacao || "—"}
+Data solicitação: ${gDate(a.data_solicitacao)}
 
-Ida: ${a.ida_origem || "—"} → ${a.ida_destino || "—"} | ${a.ida_dt || "—"}
-Retorno: ${a.ret_origem || "—"} → ${a.ret_destino || "—"} | ${a.ret_dt || "—"}
+Ida: ${a.ida_origem || "—"} → ${a.ida_destino || "—"} | ${gDT(a.ida_dt)}
+Retorno: ${a.ret_origem || "—"} → ${a.ret_destino || "—"} | ${gDT(a.ret_dt)}
 
-Missão: ${a.missao_ini || "—"} até ${a.missao_fim || "—"}
+Missão: ${gDT(a.missao_ini)} até ${gDT(a.missao_fim)}
 
 Recurso: ${a.deb_tipo || "—"} ${a.deb_det ? "(" + a.deb_det + ")" : ""}
 Transporte: ${(a.meios || []).join(", ") || "—"}

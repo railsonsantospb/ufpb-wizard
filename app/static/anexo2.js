@@ -2,6 +2,12 @@ function applyPayloadToFormByNameAnexo2(payload){
   if(!payload || typeof payload !== "object") return;
 
   const setField = (name, value) => {
+    if(name === "data_relatorio" && dataRelMirror){
+      const iso = parseDateBRToISO(value) || "";
+      dataRelMirror.sync(iso, true);
+      return;
+    }
+
     const el = document.querySelector(`[name="${name}"]`);
     if(!el) return;
 
@@ -156,6 +162,7 @@ const elBar = document.getElementById("progressBar");
 const elErrors = document.getElementById("errors");
 const statusBadge = document.getElementById("statusBadge");
 const elGenProgress = document.getElementById("generateProgress");
+const dataRelMirror = bindBrDateField("#dataRelDisplay", '[name="data_relatorio"]', () => refreshAutoFlags());
 
 function showErrors(msgs){
   if(!msgs || !msgs.length){
@@ -190,7 +197,11 @@ function gotoStep(n){
   elBar.style.width = `${Math.round((current-1)/(total-1)*100)}%`;
 
   document.getElementById("btnBack").disabled = current === 1;
-  document.getElementById("btnNext").textContent = (current === total) ? "Finalizar" : "Avançar";
+  const btnNext = document.getElementById("btnNext");
+  if(btnNext){
+    btnNext.textContent = "Avançar";
+    btnNext.style.display = (current === total) ? "none" : "inline-flex";
+  }
 
   showErrors(null);
 
@@ -226,6 +237,11 @@ function validateStep(stepNumber){
       const re = new RegExp("^" + el.getAttribute("pattern") + "$");
       if(el.value && !re.test(el.value)){
         ok = false; msgs.push("Informe um valor válido."); el.focus(); break;
+      }
+    }
+    if(el.id === "dataRelDisplay"){
+      if(el.value && !parseDateBRToISO(el.value)){
+        ok = false; msgs.push("Use o formato dd/mm/aaaa."); el.focus(); break;
       }
     }
     if(el.tagName === "TEXTAREA" && el.getAttribute("minlength")){
@@ -348,10 +364,12 @@ function refreshAutoFlags(){
 function renderReview(){
   refreshAutoFlags();
   const p = formToJSON();
+  const fmtDate = (v) => formatDateBR(v) || "—";
+  const fmtDT = (v) => formatDateTimeBR(v) || "—";
   const lines = [];
   function line(label, value){ lines.push(`${label}: ${value || "—"}`); }
 
-  line("Data do relatório", p.data_relatorio);
+  line("Data do relatório", fmtDate(p.data_relatorio));
   lines.push("\n[Proposto]");
   line("Nome", p.proposto?.nome);
   line("CPF", p.proposto?.cpf);
@@ -360,8 +378,8 @@ function renderReview(){
   line("Detalhe", p.proposto?.orgao?.detalhe);
 
   lines.push("\n[Afastamento]");
-  line("Ida", `${p.afastamento?.ida?.origem || "—"} → ${p.afastamento?.ida?.destino || "—"} | ${p.afastamento?.ida?.data_hora || "—"}`);
-  line("Retorno", `${p.afastamento?.retorno?.origem || "—"} → ${p.afastamento?.retorno?.destino || "—"} | ${p.afastamento?.retorno?.data_hora || "—"}`);
+  line("Ida", `${p.afastamento?.ida?.origem || "—"} → ${p.afastamento?.ida?.destino || "—"} | ${fmtDT(p.afastamento?.ida?.data_hora)}`);
+  line("Retorno", `${p.afastamento?.retorno?.origem || "—"} → ${p.afastamento?.retorno?.destino || "—"} | ${fmtDT(p.afastamento?.retorno?.data_hora)}`);
 
   lines.push("\n[Atividades]");
   line("Descrição", p.atividades_desenvolvidas);
@@ -379,11 +397,11 @@ function renderReview(){
     `• Proposto: ${p.proposto?.nome || "—"} | CPF: ${p.proposto?.cpf || "—"} | SIAPE: ${p.proposto?.siape || "—"}`,
     `• Órgão: ${p.proposto?.orgao?.tipo || "—"} ${p.proposto?.orgao?.detalhe ? "(" + p.proposto.orgao.detalhe + ")" : ""}`,
     "",
-    `Relatório: ${p.data_relatorio || "—"}`,
+    `Relatório: ${fmtDate(p.data_relatorio)}`,
     "",
     "Afastamento:",
-    `• Ida: ${p.afastamento?.ida?.origem || "—"} → ${p.afastamento?.ida?.destino || "—"} (${p.afastamento?.ida?.data_hora || "—"})`,
-    `• Retorno: ${p.afastamento?.retorno?.origem || "—"} → ${p.afastamento?.retorno?.destino || "—"} (${p.afastamento?.retorno?.data_hora || "—"})`,
+    `• Ida: ${p.afastamento?.ida?.origem || "—"} → ${p.afastamento?.ida?.destino || "—"} (${fmtDT(p.afastamento?.ida?.data_hora)})`,
+    `• Retorno: ${p.afastamento?.retorno?.origem || "—"} → ${p.afastamento?.retorno?.destino || "—"} (${fmtDT(p.afastamento?.retorno?.data_hora)})`,
     "",
     "Atividades:",
     `• ${p.atividades_desenvolvidas || "—"}`,
@@ -554,6 +572,8 @@ if(importBtn) importBtn.addEventListener("click", handleImportAnexo1);
 if(importInput) importInput.addEventListener("change", () => {
   setImportBadge("Pronto para importar", "");
   renderImportWarnings(null);
+  // dispara leitura automaticamente ao selecionar
+  handleImportAnexo1();
 });
 
 
@@ -569,6 +589,55 @@ function isPhoneDigits(s){ return /^[0-9]{10,11}$/.test(s || ""); }
 function isSiape(s){ return /^[0-9]{4,15}$/.test(s || ""); }
 function isMinMax(s, min, max){ const t=(s||"").trim(); return t.length>=min && t.length<=max; }
 function isNumLen(s, min, max){ return new RegExp(`^[0-9]{${min},${max}}$`).test(s || ""); }
+function formatDateBR(value){
+  if(!value) return "";
+  const str = String(value);
+  const m = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : str;
+}
+function formatDateTimeBR(value){
+  if(!value) return "";
+  const str = String(value);
+  const m = str.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s])?(\d{2}):(\d{2})/);
+  if(m) return `${m[3]}/${m[2]}/${m[1]} ${m[4]}:${m[5]}`;
+  return formatDateBR(str);
+}
+function parseDateBRToISO(value){
+  if(!value) return "";
+  const str = String(value).trim();
+  const br = str.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if(br){
+    const d = Number(br[1]);
+    const m = Number(br[2]);
+    if(d >= 1 && d <= 31 && m >= 1 && m <= 12) return `${br[3]}-${br[2]}-${br[1]}`;
+    return "";
+  }
+  const iso = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return iso ? `${iso[1]}-${iso[2]}-${iso[3]}` : "";
+}
+function bindBrDateField(displaySelector, hiddenSelector, onChange){
+  const display = document.querySelector(displaySelector);
+  const hidden = document.querySelector(hiddenSelector);
+  if(!display || !hidden) return null;
+
+  const sync = (iso, force=false) => {
+    if(force || !hidden.value) hidden.value = iso || "";
+    if(force || !display.value) display.value = iso ? formatDateBR(iso) : "";
+  };
+
+  const propagate = () => {
+    const iso = parseDateBRToISO(display.value);
+    hidden.value = iso;
+    if(typeof onChange === "function") onChange(iso);
+  };
+
+  display.addEventListener("input", propagate);
+  display.addEventListener("blur", () => {
+    if(hidden.value) display.value = formatDateBR(hidden.value);
+  });
+
+  return { sync };
+}
 
 // CPF (DV)
 function isCPF(cpf){
@@ -704,6 +773,8 @@ function c2mode(mode){
   c2.textRow.style.display = mode === "text" ? "flex" : "none";
   c2.dateRow.style.display = mode === "date" ? "flex" : "none";
   c2.dtRow.style.display = mode === "datetime" ? "flex" : "none";
+  if(mode === "date" && c2.date) c2.date.value = "";
+  if(mode === "datetime" && c2.dt) c2.dt.value = "";
 }
 function c2quick(buttons){
   c2.quick.innerHTML = "";
@@ -746,17 +817,28 @@ const chat2full = {
 // Preenche data do relatório com a data do servidor (ou data local) e bloqueia edição
 async function setDataRelatorioFromServer(){
   const formEl = document.querySelector('[name="data_relatorio"]');
-  const hadExistingValue = !!formEl?.value;
+  const displayEl = document.getElementById("dataRelDisplay");
+  const hadExistingValue = !!(formEl?.value || displayEl?.value);
 
   const applyValue = (val, force=false) => {
+    const iso = parseDateBRToISO(val);
+    if(!iso) return;
+
+    if(dataRelMirror) dataRelMirror.sync(iso, force);
     if(formEl){
-      if(force || !formEl.value) formEl.value = val;
+      if(force || !formEl.value) formEl.value = iso;
       formEl.readOnly = true;
       formEl.setAttribute("aria-readonly", "true");
       formEl.classList.add("readonly");
     }
+    if(displayEl){
+      if(force || !displayEl.value) displayEl.value = formatDateBR(iso);
+      displayEl.readOnly = true;
+      displayEl.setAttribute("aria-readonly", "true");
+      displayEl.classList.add("readonly");
+    }
     if(force || !chat2full.data.data_relatorio){
-      chat2full.data.data_relatorio = (formEl?.value || val);
+      chat2full.data.data_relatorio = (formEl?.value || iso);
     }
   };
 
@@ -901,7 +983,8 @@ function ask2(){
     const preset = d.data_relatorio || (document.querySelector('[name="data_relatorio"]')?.value);
     if(preset){
       chat2full.data.data_relatorio = preset;
-      c2bubble("bot", `Usei a data automática do relatório: ${preset}.`);
+      const presetDisplay = formatDateBR(preset) || preset;
+      c2bubble("bot", `Usei a data automática do relatório: ${presetDisplay}.`);
       chat2full.state = "proposto.nome";
       ask2();
       return;
@@ -992,13 +1075,15 @@ function ask2(){
     const payload = buildPayloadAnexo2FromChat();
     const cpf = payload?.proposto?.cpf || "";
     const cpfMask = cpf && cpf.length===11 ? (cpf.slice(0,3)+"***"+cpf.slice(-2)) : "—";
+    const fmtDate = (v) => formatDateBR(v) || "—";
+    const fmtDT = (v) => formatDateTimeBR(v) || "—";
     const resumo =
 `Resumo:
 • Proposto: ${payload?.proposto?.nome || "—"} | CPF: ${cpfMask} | SIAPE: ${payload?.proposto?.siape || "—"}
 • Órgão: ${payload?.proposto?.orgao?.tipo || "—"} ${payload?.proposto?.orgao?.detalhe ? "(" + payload.proposto.orgao.detalhe + ")" : ""}
-• Data do relatório: ${payload.data_relatorio || "—"}
-• Ida: ${payload?.afastamento?.ida?.origem || "—"} → ${payload?.afastamento?.ida?.destino || "—"} | ${payload?.afastamento?.ida?.data_hora || "—"}
-• Retorno: ${payload?.afastamento?.retorno?.origem || "—"} → ${payload?.afastamento?.retorno?.destino || "—"} | ${payload?.afastamento?.retorno?.data_hora || "—"}
+• Data do relatório: ${fmtDate(payload.data_relatorio)}
+• Ida: ${payload?.afastamento?.ida?.origem || "—"} → ${payload?.afastamento?.ida?.destino || "—"} | ${fmtDT(payload?.afastamento?.ida?.data_hora)}
+• Retorno: ${payload?.afastamento?.retorno?.origem || "—"} → ${payload?.afastamento?.retorno?.destino || "—"} | ${fmtDT(payload?.afastamento?.retorno?.data_hora)}
 • Viagem realizada: ${payload.viagem_realizada || "—"}
 
 Ao aplicar, eu preencho o formulário manual e te levo para o início para revisão.`;
@@ -1136,11 +1221,17 @@ function reply2(field, value){
 // --------- handlers de date/datetime/text ---------
 if(c2.dateOk) c2.dateOk.addEventListener("click", () => {
   const v = c2.date.value;
-  if(!v) return;
-  c2bubble("user", v);
+  const iso = parseDateBRToISO(v);
+  if(!iso){
+    c2bubble("bot", "Formato esperado: dd/mm/aaaa.");
+    return;
+  }
+  const display = formatDateBR(iso) || iso;
+  c2.date.value = display;
+  c2bubble("user", display);
 
   if(chat2full.state === "data_relatorio"){
-    reply2("data_relatorio", v);
+    reply2("data_relatorio", iso);
     return;
   }
 });
@@ -1259,12 +1350,7 @@ function resetWizardToStart(){
 document.getElementById("btnBack").addEventListener("click", () => gotoStep(current - 1));
 document.getElementById("btnNext").addEventListener("click", () => {
   if(!validateStep(current)) return;
-  if(current === total){
-    const ok = window.confirm("Deseja finalizar e limpar o formulário?");
-    if(!ok) return;
-    resetWizardToStart();
-    return;
-  }
+  if(current >= total) return;
   gotoStep(current + 1);
 });
 document.getElementById("btnDocx").addEventListener("click", async () => {

@@ -343,3 +343,122 @@ def extract_prefill_from_anexo1(source: Path | str) -> Anexo1PrefillResult:
     prefill = build_anexo2_prefill(parsed)
     warnings = _build_warnings(prefill)
     return Anexo1PrefillResult(prefill=prefill, warnings=warnings)
+
+
+def _parse_br_date(value: Optional[str]) -> Optional[str]:
+    if not value:
+        return None
+    try:
+        dt = datetime.strptime(value.strip(), "%d/%m/%Y")
+        return dt.strftime("%Y-%m-%d")
+    except ValueError:
+        return None
+
+
+def _map_debito_recurso_anexo1(debito: Optional[str]) -> Dict[str, Optional[str]]:
+    if not debito:
+        return {}
+    deb = debito.upper()
+    if deb.startswith("CCHSA"):
+        return {"tipo": "cchsa"}
+    if deb.startswith("CAVN"):
+        return {"tipo": "cavn"}
+    if deb.startswith("PROJETO"):
+        return {"tipo": "projeto"}
+    if deb.startswith("OUTROS"):
+        detalhe = debito.split(":", 1)[1].strip() if ":" in debito else None
+        return {"tipo": "outros", "detalhe": detalhe or None}
+    return {}
+
+
+def build_anexo1_prefill(parsed: Dict[str, Any]) -> Dict[str, Any]:
+    ident = parsed.get("identificacao") or {}
+    ida = parsed.get("destino_ida") or {}
+    ret = parsed.get("destino_retorno") or {}
+    missao = parsed.get("missao") or {}
+
+    ida_dt = _parse_br_datetime(ida.get("data_hora")) or _parse_br_datetime(missao.get("inicio"))
+    ret_dt = _parse_br_datetime(ret.get("data_hora")) or _parse_br_datetime(missao.get("termino"))
+    mi_dt = _parse_br_datetime(missao.get("inicio"))
+    mf_dt = _parse_br_datetime(missao.get("termino"))
+
+    prefill = {
+        "tipo_solicitacao": None,
+        "data_solicitacao": None,
+        "servidor": {
+            "nome_completo": ident.get("nome_completo"),
+            "cargo_funcao": ident.get("cargo_funcao"),
+            "cpf": _only_digits(ident.get("cpf")),
+            "rg": ident.get("rg"),
+            "data_nascimento": _parse_br_date(ident.get("data_nascimento")),
+            "siape": _only_digits(ident.get("siape")),
+            "nome_mae": ident.get("nome_mae"),
+            "endereco": ident.get("endereco"),
+            "telefone": _only_digits(ident.get("telefone")),
+            "email": ident.get("email"),
+            "dados_bancarios": {
+                "banco": ident.get("dados_bancarios", {}).get("banco"),
+                "agencia": ident.get("dados_bancarios", {}).get("agencia"),
+                "conta": ident.get("dados_bancarios", {}).get("conta"),
+            },
+        },
+        "trechos": {
+            "ida": {"origem": ida.get("local_origem"), "destino": ida.get("local_destino"), "data_hora": ida_dt},
+            "retorno": {"origem": ret.get("local_origem"), "destino": ret.get("local_destino"), "data_hora": ret_dt},
+        },
+        "missao": {"inicio_data_hora": mi_dt, "termino_data_hora": mf_dt},
+        "debito_recurso": _map_debito_recurso_anexo1(parsed.get("debito_recurso")),
+        "transporte": {"meios": [], "termo_veiculo_proprio_ciente": False},
+        "motivo_viagem": parsed.get("motivo_viagem"),
+    }
+
+    return clean(prefill)
+
+
+def build_anexo1_warnings(prefill: Dict[str, Any]) -> List[str]:
+    warnings: List[str] = []
+    servidor = prefill.get("servidor") or {}
+    trechos = prefill.get("trechos") or {}
+    deb = prefill.get("debito_recurso") or {}
+
+    if not servidor.get("nome_completo"):
+        warnings.append("Nome completo não identificado.")
+    if not servidor.get("cpf"):
+        warnings.append("CPF não identificado ou ilegível.")
+    if not servidor.get("siape"):
+        warnings.append("SIAPE não identificado.")
+    if not servidor.get("data_nascimento"):
+        warnings.append("Data de nascimento não encontrada.")
+
+    ida = trechos.get("ida") or {}
+    ret = trechos.get("retorno") or {}
+    if not ida.get("origem") or not ida.get("destino"):
+        warnings.append("Trecho de ida incompleto; revise origem/destino.")
+    if not ret.get("origem") or not ret.get("destino"):
+        warnings.append("Trecho de retorno incompleto; revise origem/destino.")
+    if not ida.get("data_hora") or not ret.get("data_hora"):
+        warnings.append("Datas/horários não foram lidos; informe manualmente.")
+
+    if not deb.get("tipo"):
+        warnings.append("Débito do recurso não identificado; selecione manualmente.")
+
+    if not prefill.get("motivo_viagem"):
+        warnings.append("Motivo da viagem não encontrado.")
+
+    return warnings
+
+
+@dataclass
+class Anexo1SelfPrefillResult:
+    prefill: Dict[str, Any]
+    warnings: List[str]
+
+
+def extract_prefill_for_anexo1(source: Path | str) -> Anexo1SelfPrefillResult:
+    parsed = parse_doc_to_json(source)
+    if not parsed:
+        raise ValueError("Não foi possível interpretar o documento.")
+
+    prefill = build_anexo1_prefill(parsed)
+    warnings = build_anexo1_warnings(prefill)
+    return Anexo1SelfPrefillResult(prefill=prefill, warnings=warnings)

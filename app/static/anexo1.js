@@ -120,15 +120,105 @@ function applyPayloadToFormByName(payload) {
     const importSelfHelper = document.getElementById("importSelfHelper");
     const importSelfWarnings = document.getElementById("importSelfWarnings");
     const importSelfProgress = document.getElementById("importSelfProgress");
+    const FIELD_LABELS = {
+      tipo_solicitacao: "Tipo de solicitação",
+      dataSolicDisplay: "Data da solicitação",
+      "servidor.nome_completo": "Nome completo",
+      "servidor.cargo_funcao": "Cargo/Função",
+      "servidor.cpf": "CPF",
+      "servidor.rg": "RG",
+      dataNascDisplay: "Data de nascimento",
+      "servidor.siape": "SIAPE",
+      "servidor.nome_mae": "Nome da mãe",
+      "servidor.telefone": "Telefone",
+      "servidor.endereco": "Endereço",
+      "servidor.email": "E-mail",
+      "servidor.dados_bancarios.banco": "Banco",
+      "servidor.dados_bancarios.agencia": "Agência",
+      "servidor.dados_bancarios.conta": "Conta",
+      motivo_viagem: "Motivo da viagem",
+      "trechos.ida.origem": "Origem da ida",
+      "trechos.ida.destino": "Destino da ida",
+      "trechos.ida.data_hora": "Data/hora da ida",
+      "trechos.retorno.origem": "Origem do retorno",
+      "trechos.retorno.destino": "Destino do retorno",
+      "trechos.retorno.data_hora": "Data/hora do retorno",
+      "missao.inicio_data_hora": "Início da missão",
+      "missao.termino_data_hora": "Término da missão",
+      "debito_recurso.tipo": "Tipo do recurso",
+      "debito_recurso.detalhe": "Detalhe do recurso",
+      justFds: "Justificativa (fim de semana/feriado/dia anterior)",
+      justPrazo: "Justificativa (fora do prazo)"
+    };
+    const PATTERN_TIPS = {
+      "servidor.cpf": "Use 11 dígitos numéricos (somente números).",
+      "servidor.telefone": "Use DDD + número (10 ou 11 dígitos).",
+      "servidor.siape": "Use apenas números (4 a 15 dígitos).",
+      "servidor.dados_bancarios.agencia": "Use apenas números (máx. 10 dígitos).",
+      "servidor.dados_bancarios.conta": "Use apenas números (máx. 20 dígitos)."
+    };
+    const getFieldLabel = (el) => {
+      const key = el.name || el.id || "";
+      if (FIELD_LABELS[key]) return FIELD_LABELS[key];
+      const lbl = el.closest("label");
+      if (lbl && (lbl.innerText || lbl.textContent)) {
+        return (lbl.innerText || lbl.textContent).trim();
+      }
+      return key || "Campo obrigatório";
+    };
 
+    let lastErrorToast = { msg: "", ts: 0 };
+    let fieldPopupEl = null;
+    let fieldPopupClear = null;
+    function hideFieldPopup() {
+      if (fieldPopupEl) fieldPopupEl.remove();
+      if (fieldPopupClear) {
+        window.removeEventListener("scroll", fieldPopupClear);
+        window.removeEventListener("resize", fieldPopupClear);
+      }
+      fieldPopupEl = null;
+      fieldPopupClear = null;
+    }
+    function showFieldPopup(target, msg) {
+      if (!target) return;
+      hideFieldPopup();
+      const popup = document.createElement("div");
+      popup.className = "field-popup danger";
+      popup.textContent = msg || "Campo obrigatório";
+      document.body.appendChild(popup);
+      const rect = target.getBoundingClientRect();
+      const pRect = popup.getBoundingClientRect();
+      let top = rect.top + window.scrollY + 4;
+      if (top + pRect.height > rect.bottom + window.scrollY) top = rect.bottom + window.scrollY + 4;
+      let left = rect.left + window.scrollX + 8;
+      const maxLeft = rect.right + window.scrollX - pRect.width - 6;
+      if (left > maxLeft) left = maxLeft;
+      if (left < window.scrollX + 6) left = window.scrollX + 6;
+      popup.style.top = `${top}px`;
+      popup.style.left = `${left}px`;
+      fieldPopupEl = popup;
+      const clear = () => hideFieldPopup();
+      fieldPopupClear = clear;
+      ["input", "change", "blur"].forEach(evt => target.addEventListener(evt, clear, { once: true }));
+      window.addEventListener("scroll", clear, { once: true });
+      window.addEventListener("resize", clear, { once: true });
+    }
     function showErrors(msgs) {
       if (!msgs || !msgs.length) {
         elErrors.style.display = "none";
         elErrors.textContent = "";
+        hideFieldPopup();
         return;
       }
       elErrors.style.display = "block";
       elErrors.textContent = msgs.map(m => `• ${m}`).join("\n");
+      if (window.ufpbToast && msgs[0]) {
+        const now = Date.now();
+        if (msgs[0] !== lastErrorToast.msg || now - lastErrorToast.ts > 600) {
+          window.ufpbToast(msgs[0], "danger");
+          lastErrorToast = { msg: msgs[0], ts: now };
+        }
+      }
     }
 
     function setStatus(text, kind) {
@@ -243,6 +333,10 @@ function applyPayloadToFormByName(payload) {
       // HTML validity
       let ok = true;
       const msgs = [];
+      const missing = [];
+      const invalid = [];
+      let focusEl = null;
+      let firstMissingEl = null;
 
       // custom rules
       function dtValue(name) {
@@ -253,45 +347,79 @@ function applyPayloadToFormByName(payload) {
 
       // basic required validation with custom messages
       for (const el of inputs) {
-        // ignore disabled
         if (el.disabled) continue;
 
-        // conditional fields: hide => skip
         const wrap = el.closest("[style*='display:none']");
         if (wrap) continue;
 
-        if (el.hasAttribute("required") && !el.value) {
+        const label = getFieldLabel(el);
+        const val = (el.value || "").trim();
+
+        if (el.hasAttribute("required") && !val) {
           ok = false;
-          msgs.push("Preencha este campo para continuar.");
-          el.focus();
-          break;
+          missing.push(label);
+          if (!focusEl) focusEl = el;
+          if (!firstMissingEl) firstMissingEl = el;
+          continue;
         }
         if (el.tagName === "INPUT" && el.getAttribute("pattern")) {
           const re = new RegExp("^" + el.getAttribute("pattern") + "$");
-          if (el.value && !re.test(el.value)) {
+          if (val && !re.test(val)) {
             ok = false;
-            msgs.push("Informe um valor válido.");
-            el.focus();
-            break;
+            const tip = PATTERN_TIPS[el.name || el.id] || "Formato inválido.";
+            invalid.push(`${label} — ${tip}`);
+            if (!focusEl) focusEl = el;
+            continue;
+          }
+        }
+        if (el.name === "servidor.cpf" && val) {
+          if (!isCPF(val)) {
+            ok = false;
+            invalid.push(`${label} — CPF inválido (dígitos não conferem).`);
+            if (!focusEl) focusEl = el;
+            continue;
+          }
+        }
+        if (el.type === "email") {
+          if (val && !isEmail(val)) {
+            ok = false;
+            invalid.push(`${label} — e-mail inválido.`);
+            if (!focusEl) focusEl = el;
+            continue;
           }
         }
         if (el.id === "dataSolicDisplay" || el.id === "dataNascDisplay") {
-          if (el.value && !parseDateBRToISO(el.value)) {
+          if (val && !parseDateBRToISO(val)) {
             ok = false;
-            msgs.push("Use o formato dd/mm/aaaa.");
-            el.focus();
-            break;
+            invalid.push(`${label} — use o formato dd/mm/aaaa.`);
+            if (!focusEl) focusEl = el;
+            continue;
           }
         }
         if (el.tagName === "TEXTAREA" && el.getAttribute("minlength")) {
           const min = Number(el.getAttribute("minlength"));
-          if (el.value && el.value.length < min) {
+          if (val && val.length < min) {
             ok = false;
-            msgs.push(`Informe pelo menos ${min} caracteres.`);
-            el.focus();
-            break;
+            invalid.push(`${label} — mínimo de ${min} caracteres.`);
+            if (!focusEl) focusEl = el;
+            continue;
           }
         }
+      }
+
+      if (missing.length) {
+        msgs.push(`Preencha os campos obrigatórios: ${missing.join(", ")}.`);
+      }
+      if (invalid.length) {
+        msgs.push(`Revise os campos: ${invalid.join(" | ")}.`);
+      }
+      if (!ok && focusEl && typeof focusEl.focus === "function") {
+        focusEl.focus();
+      }
+      if (!ok && firstMissingEl) {
+        showFieldPopup(firstMissingEl, "Campo obrigatório");
+      } else if (!ok) {
+        hideFieldPopup();
       }
 
       // step-specific cross-field validations (before leaving)
@@ -470,6 +598,34 @@ function applyPayloadToFormByName(payload) {
       m.textRow.style.display = mode === "text" ? "flex" : "none";
       m.dateRow.style.display = mode === "date" ? "flex" : "none";
       m.dtRow.style.display = mode === "datetime" ? "flex" : "none";
+      if (mode === "text") {
+        const ph = {
+          "servidor.nome_completo": "Digite o nome completo",
+          "servidor.cargo_funcao": "Digite o cargo/função",
+          "servidor.cpf": "Digite o CPF",
+          "servidor.rg": "Digite o RG",
+          "servidor.siape": "Digite o SIAPE",
+          "servidor.nome_mae": "Digite o nome da mãe",
+          "servidor.endereco": "Digite o endereço",
+          "servidor.telefone": "Digite o telefone (DDD + número)",
+          "servidor.email": "Digite o e-mail",
+          "servidor.banco": "Digite o banco",
+          "servidor.agencia": "Digite a agência",
+          "servidor.conta": "Digite a conta",
+          "trechos.ida.origem": "Digite a origem da ida",
+          "trechos.ida.destino": "Digite o destino da ida",
+          "trechos.retorno.origem_text": "Digite a origem do retorno",
+          "trechos.retorno.destino_text": "Digite o destino do retorno",
+          "debito_recurso.detalhe": "Digite o detalhe do recurso",
+          "motivo.objetivo_curto": "Digite o objetivo principal",
+          "motivo.texto_livre": "Digite o motivo da viagem",
+          "justificativas.fds": "Digite a justificativa",
+          "justificativas.prazo": "Digite a justificativa fora do prazo"
+        }[chatFull.state] || "Digite aqui...";
+        if (m.text) m.text.placeholder = ph;
+      } else if (m.text) {
+        m.text.placeholder = "Digite aqui...";
+      }
       if (mode === "date" && m.date) m.date.value = "";
       if (mode === "datetime" && m.dt) m.dt.value = "";
     }
@@ -487,7 +643,12 @@ function applyPayloadToFormByName(payload) {
     }
 
     function onlyDigits(s) { return (s || "").replace(/\D+/g, ""); }
-    function isEmail(s) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s || ""); }
+    function isEmail(s) {
+      const email = (s || "").trim();
+      // RFC 5322-like simplificado + bloqueio a domínios sem TLD ou TLD inválida
+      const basic = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$/;
+      return basic.test(email);
+    }
     function isPhoneDigits(s) { return /^[0-9]{10,11}$/.test(s || ""); }
     function isSiape(s) { return /^[0-9]{4,15}$/.test(s || ""); }
     function isRG(s) { return (s || "").trim().length >= 3 && (s || "").trim().length <= 20; }
@@ -499,6 +660,11 @@ function applyPayloadToFormByName(payload) {
       cpf = onlyDigits(cpf);
       if (!/^[0-9]{11}$/.test(cpf)) return false;
       if (/^(\d)\1{10}$/.test(cpf)) return false;
+      const blacklist = [
+        "12345678909", "01234567890", "11111111111", "22222222222", "33333333333",
+        "44444444444", "55555555555", "66666666666", "77777777777", "88888888888", "99999999999"
+      ];
+      if (blacklist.includes(cpf)) return false;
 
       let sum = 0;
       for (let i = 0; i < 9; i++) sum += parseInt(cpf[i]) * (10 - i);
@@ -558,6 +724,14 @@ function applyPayloadToFormByName(payload) {
       const display = document.querySelector(displaySelector);
       const hidden = document.querySelector(hiddenSelector);
       if (!display || !hidden) return null;
+
+      // mascara simples dd/mm/aaaa
+      display.addEventListener("input", (ev) => {
+        let v = (ev.target.value || "").replace(/\D+/g, "").slice(0,8);
+        if (v.length >= 5) v = `${v.slice(0,2)}/${v.slice(2,4)}/${v.slice(4)}`;
+        else if (v.length >= 3) v = `${v.slice(0,2)}/${v.slice(2)}`;
+        ev.target.value = v;
+      });
 
       const sync = (iso, force = false) => {
         if (force || !hidden.value) hidden.value = iso || "";
@@ -706,7 +880,7 @@ function applyPayloadToFormByName(payload) {
         if (preset) {
           d.data_solicitacao = preset;
           const presetDisplay = formatDateBR(preset) || preset;
-          addBubble("bot", `Usei a data da solicitação automática: ${presetDisplay}.`);
+        addBubble("bot", `Usar data atual: ${presetDisplay}.`);
           chatFull.state = "servidor.nome_completo";
           ask();
           return;
@@ -858,7 +1032,7 @@ function applyPayloadToFormByName(payload) {
 
       if (s === "transporte.termo") {
         askQuick(
-          "Você confirma ciência do termo de opção para veículo próprio?",
+          "Você confirma ciência do termo de responsabilidade para veículo próprio?",
           [
             { label: "Sim, estou ciente", primary: true, onClick: () => reply("transporte.termo_veiculo_proprio_ciente", true) },
             { label: "Não", onClick: () => reply("transporte.termo_veiculo_proprio_ciente", false) },
@@ -958,14 +1132,11 @@ Depois disso, você pode revisar os campos no formulário e gerar o DOC/PDF.`;
 
         askQuick(resumo, [
           {
-            label: "Aplicar no formulário", primary: true, onClick: () => {
+            label: "Aplicar e revisar", primary: true, onClick: () => {
               const payload = buildPayloadFromChatFull();
               finalizeChatAnexo1(payload);
             }
-          },
-          { label: "Corrigir dados pessoais", onClick: () => { chatFull.state = "servidor.nome_completo"; ask(); } },
-          { label: "Corrigir datas da viagem", onClick: () => { chatFull.state = "trechos.ida.data_hora"; ask(); } },
-          { label: "Corrigir motivo", onClick: () => { chatFull.state = "motivo_viagem"; ask(); } },
+          }
         ]);
         return;
       }
@@ -1260,7 +1431,6 @@ Depois disso, você pode revisar os campos no formulário e gerar o DOC/PDF.`;
     m.send.addEventListener("click", () => {
       const v = (m.text.value || "").trim();
       if (!v) return;
-      addBubble("user", v);
 
       // roteamento do texto conforme estado
       if (chatFull.state === "servidor.nome_completo"
@@ -1680,8 +1850,8 @@ Depois disso, você pode revisar os campos no formulário e gerar o DOC/PDF.`;
 
       // boolean defaults
       obj.flags = obj.flags || {};
-      obj.flags.envolve_fds_feriado_ou_dia_anterior = !!obj.flags.envolve_fds_feriado_ou_dia_anterior;
-      obj.flags.fora_do_prazo = !!obj.flags.fora_do_prazo;
+      obj.flags.envolve_fds_feriado_ou_dia_anterior = flagFdsEl ? !!flagFdsEl.checked : !!obj.flags.envolve_fds_feriado_ou_dia_anterior;
+      obj.flags.fora_do_prazo = flagPrazoEl ? !!flagPrazoEl.checked : !!obj.flags.fora_do_prazo;
 
       obj.transporte = obj.transporte || {};
       obj.transporte.termo_veiculo_proprio_ciente = !!obj.transporte.termo_veiculo_proprio_ciente;
@@ -2139,15 +2309,15 @@ Depois disso, você pode revisar os campos no formulário e gerar o DOC/PDF.`;
         const items = [
           { id: "g_t_vo", label: "Veículo oficial", value: "veiculo_oficial", checked: a.meios.includes("veiculo_oficial"), small: "Quando houver disponibilidade institucional." },
           { id: "g_t_et", label: "Empresa terrestre", value: "empresa_terrestre", checked: a.meios.includes("empresa_terrestre"), small: "Ônibus/van/serviço terrestre." },
-          { id: "g_t_ea", label: "Empresa aérea", value: "empresa_aerea", checked: a.meios.includes("empresa_aerea"), small: "Quando houver emissão aérea." },
-          { id: "g_t_vp", label: "Veículo próprio", value: "veiculo_proprio", checked: a.meios.includes("veiculo_proprio"), small: "Exige ciência do termo." },
+          { id: "g_t_ea", label: "Empresa aérea", value: "empresa_aerea", checked: a.meios.includes("empresa_aerea"), small: "Ciente para enviar as sugestões de voo no processo SIPAC." },
+          { id: "g_t_vp", label: "Veículo próprio", value: "veiculo_proprio", checked: a.meios.includes("veiculo_proprio"), small: "Exige ciência do termo de responsabilidade." },
         ];
 
         guidedBody.innerHTML = `
       <h2>6) Transporte</h2>
       ${multiCheckbox(items)}
       <div id="g_termo_wrap" style="display:${a.meios.includes("veiculo_proprio") ? "block" : "none"}; margin-top:10px;">
-        ${checkbox("g_termo", "Ciente do termo de opção (obrigatório para veículo próprio)", a.veic_proprio_ciente)}
+        ${checkbox("g_termo", "Ciente do termo de responsabilidade (obrigatório para veículo próprio)", a.veic_proprio_ciente)}
       </div>
       <div class="helper">Selecione ao menos um meio. Se marcar veículo próprio, marque ciência do termo.</div>
     `;
@@ -2182,7 +2352,7 @@ Depois disso, você pode revisar os campos no formulário e gerar o DOC/PDF.`;
         // resumo
         guidedBody.innerHTML = `
       <h2>7) Revisão rápida</h2>
-      <pre style="white-space:pre-wrap;margin:0;color:rgba(255,255,255,0.85);font-size:12.5px;">
+      <pre class="review-text">
 Tipo: ${a.tipo_solicitacao || "—"}
 Data solicitação: ${gDate(a.data_solicitacao)}
 

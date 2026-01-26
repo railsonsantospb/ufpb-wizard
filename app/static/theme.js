@@ -64,4 +64,58 @@
       applyFontScale(current - 0.1);
     });
   });
+
+  // Toast de feedback rápido (erros/avisos)
+  const ensureToastStack = () => {
+    let stack = document.getElementById("toastStack");
+    if (!stack) {
+      stack = document.createElement("div");
+      stack.id = "toastStack";
+      stack.className = "toast-stack";
+      document.body.appendChild(stack);
+    }
+    return stack;
+  };
+  const removeToast = (el) => {
+    if (!el) return;
+    el.classList.add("toast-hide");
+    setTimeout(() => el.remove(), 220);
+  };
+  const showToast = (message, variant = "info", opts = {}) => {
+    if (!message) return;
+    const stack = ensureToastStack();
+    const toast = document.createElement("div");
+    toast.className = `toast toast-show${variant ? " " + variant : ""}`;
+    toast.setAttribute("role", "alert");
+    toast.setAttribute("aria-live", "polite");
+
+    const icon = document.createElement("div");
+    icon.className = "toast-icon";
+    icon.textContent = variant === "danger" ? "!" : "i";
+
+    const body = document.createElement("div");
+    body.className = "toast-body";
+    body.textContent = message;
+
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "toast-close";
+    close.setAttribute("aria-label", "Fechar aviso");
+    close.textContent = "×";
+    close.addEventListener("click", () => removeToast(toast));
+
+    toast.appendChild(icon);
+    toast.appendChild(body);
+    toast.appendChild(close);
+    stack.appendChild(toast);
+
+    const duration = typeof opts.duration === "number" ? opts.duration : 4200;
+    const timer = setTimeout(() => removeToast(toast), duration);
+    toast.addEventListener("mouseenter", () => clearTimeout(timer));
+    toast.addEventListener("mouseleave", () => {
+      setTimeout(() => removeToast(toast), 1200);
+    });
+  };
+
+  window.ufpbToast = showToast;
 })();

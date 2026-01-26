@@ -159,19 +159,111 @@ const elTitle = document.getElementById("stepTitle");
 const elMeta = document.getElementById("stepMeta");
 const elCount = document.getElementById("stepCount");
 const elBar = document.getElementById("progressBar");
-const elErrors = document.getElementById("errors");
+let elErrors = document.getElementById("errors");
 const statusBadge = document.getElementById("statusBadge");
 const elGenProgress = document.getElementById("generateProgress");
 const dataRelMirror = bindBrDateField("#dataRelDisplay", '[name="data_relatorio"]', () => refreshAutoFlags());
+const flagPrazoEl = document.getElementById("flagPrazo");
+const FIELD_LABELS = {
+  dataRelDisplay: "Data do relatório",
+  "proposto.nome": "Nome completo",
+  "proposto.cpf": "CPF",
+  "proposto.siape": "SIAPE",
+  "proposto.orgao.tipo": "Órgão",
+  "proposto.orgao.detalhe": "Detalhe do órgão",
+  "afastamento.ida.origem": "Origem (ida)",
+  "afastamento.ida.destino": "Destino (ida)",
+  "afastamento.ida.data_hora": "Data/hora da ida",
+  "afastamento.retorno.origem": "Origem (retorno)",
+  "afastamento.retorno.destino": "Destino (retorno)",
+  "afastamento.retorno.data_hora": "Data/hora do retorno",
+  atividades_desenvolvidas: "Atividades desenvolvidas",
+  justPrazo: "Justificativa (fora do prazo)",
+  viagem_realizada: "Viagem realizada?"
+};
+const PATTERN_TIPS = {
+  "proposto.cpf": "Use 11 dígitos numéricos (somente números).",
+  "proposto.siape": "Use apenas números (4 a 15 dígitos)."
+};
+const getFieldLabel = (el) => {
+  const key = el.name || el.id || "";
+  if (FIELD_LABELS[key]) return FIELD_LABELS[key];
+  const lbl = el.closest("label");
+  if (lbl && (lbl.innerText || lbl.textContent)) {
+    return (lbl.innerText || lbl.textContent).trim();
+  }
+  return key || "Campo obrigatório";
+};
 
+let lastErrorToast = { msg: "", ts: 0 };
+let fieldPopupEl = null;
+let fieldPopupClear = null;
+function hideFieldPopup(){
+  if(fieldPopupEl) fieldPopupEl.remove();
+  if(fieldPopupClear){
+    window.removeEventListener("scroll", fieldPopupClear);
+    window.removeEventListener("resize", fieldPopupClear);
+  }
+  fieldPopupEl = null;
+  fieldPopupClear = null;
+}
+function showFieldPopup(target, msg){
+  if(!target) return;
+  hideFieldPopup();
+  const popup = document.createElement("div");
+  popup.className = "field-popup danger";
+  popup.textContent = msg || "Campo obrigatório";
+  document.body.appendChild(popup);
+  const rect = target.getBoundingClientRect();
+  const pRect = popup.getBoundingClientRect();
+  let top = rect.top + window.scrollY + 4;
+  if(top + pRect.height > rect.bottom + window.scrollY) top = rect.bottom + window.scrollY + 4;
+  let left = rect.left + window.scrollX + 8;
+  const maxLeft = rect.right + window.scrollX - pRect.width - 6;
+  if(left > maxLeft) left = maxLeft;
+  if(left < window.scrollX + 6) left = window.scrollX + 6;
+  popup.style.top = `${top}px`;
+  popup.style.left = `${left}px`;
+  fieldPopupEl = popup;
+  const clear = () => hideFieldPopup();
+  fieldPopupClear = clear;
+  ["input","change","blur"].forEach(evt => target.addEventListener(evt, clear, { once:true }));
+  window.addEventListener("scroll", clear, { once:true });
+  window.addEventListener("resize", clear, { once:true });
+}
+function ensureErrorsEl(){
+  if(elErrors && elErrors.parentNode) return elErrors;
+  const host = document.querySelector(".container") || document.body;
+  const div = document.createElement("div");
+  div.id = "errors";
+  div.className = "errors";
+  div.style.display = "none";
+  host.insertBefore(div, host.firstChild || null);
+  elErrors = div;
+  return elErrors;
+}
 function showErrors(msgs){
+  ensureErrorsEl();
+  const navErrors = document.getElementById("errorsNav");
   if(!msgs || !msgs.length){
     elErrors.style.display = "none";
     elErrors.textContent = "";
+    if(navErrors){ navErrors.style.display = "none"; navErrors.textContent = ""; }
+    hideFieldPopup();
     return;
   }
-  elErrors.style.display = "block";
-  elErrors.textContent = msgs.map(m => `• ${m}`).join("\n");
+ 
+  if(navErrors){
+    navErrors.style.display = "block";
+    navErrors.textContent = msgs.map(m => `• ${m}`).join("\n");
+  }
+  if (window.ufpbToast && msgs[0]) {
+    const now = Date.now();
+    if (msgs[0] !== lastErrorToast.msg || now - lastErrorToast.ts > 600) {
+      window.ufpbToast(msgs[0], "danger");
+      lastErrorToast = { msg: msgs[0], ts: now };
+    }
+  }
 }
 
 function setStatus(text, kind){
@@ -205,8 +297,19 @@ function gotoStep(n){
 
   showErrors(null);
 
-  if(current === 5) refreshAutoFlags();
-  if(current === 6) renderReview();
+  if(current === 5){
+    refreshAutoFlags();
+  }
+  if(current === 6){
+    const sel = form.querySelector('[name="viagem_realizada"]');
+    if(sel && alertNaoRealizada){
+      alertNaoRealizada.style.display = sel.value === "nao" ? "block" : "none";
+    }
+  }
+  if(current === 7){
+    refreshAutoFlags();
+    renderReview();
+  }
 }
 
 function getSection(stepNumber){
@@ -218,6 +321,10 @@ function validateStep(stepNumber){
   const inputs = Array.from(section.querySelectorAll("input, select, textarea"));
   let ok = true;
   const msgs = [];
+  const missing = [];
+  const invalid = [];
+  let focusEl = null;
+  let firstMissingEl = null;
 
   function dtValue(name){
     const el = form.querySelector(`[name="${name}"]`);
@@ -230,26 +337,66 @@ function validateStep(stepNumber){
     const wrap = el.closest("[style*='display:none']");
     if(wrap) continue;
 
-    if(el.hasAttribute("required") && !el.value){
-      ok = false; msgs.push("Preencha este campo para continuar."); el.focus(); break;
+    const label = getFieldLabel(el);
+    const val = (el.value || "").trim();
+
+    if(el.hasAttribute("required") && !val){
+      ok = false;
+      missing.push(label);
+      if(!focusEl) focusEl = el;
+      if(!firstMissingEl) firstMissingEl = el;
+      continue;
     }
     if(el.tagName === "INPUT" && el.getAttribute("pattern")){
       const re = new RegExp("^" + el.getAttribute("pattern") + "$");
-      if(el.value && !re.test(el.value)){
-        ok = false; msgs.push("Informe um valor válido."); el.focus(); break;
+      if(val && !re.test(val)){
+        ok = false;
+        const tip = PATTERN_TIPS[el.name || el.id] || "Formato inválido.";
+        invalid.push(`${label} — ${tip}`);
+        if(!focusEl) focusEl = el;
+        continue;
+      }
+    }
+    if(el.name === "proposto.cpf" && val){
+      if(!isCPF(val)){
+        ok = false;
+        invalid.push(`${label} — CPF inválido (dígitos não conferem).`);
+        if(!focusEl) focusEl = el;
+        continue;
       }
     }
     if(el.id === "dataRelDisplay"){
-      if(el.value && !parseDateBRToISO(el.value)){
-        ok = false; msgs.push("Use o formato dd/mm/aaaa."); el.focus(); break;
+      if(val && !parseDateBRToISO(val)){
+        ok = false;
+        invalid.push(`${label} — use o formato dd/mm/aaaa.`);
+        if(!focusEl) focusEl = el;
+        continue;
       }
     }
     if(el.tagName === "TEXTAREA" && el.getAttribute("minlength")){
       const min = Number(el.getAttribute("minlength"));
-      if(el.value && el.value.length < min){
-        ok = false; msgs.push(`Informe pelo menos ${min} caracteres.`); el.focus(); break;
+      if(val && val.length < min){
+        ok = false;
+        invalid.push(`${label} — mínimo de ${min} caracteres.`);
+        if(!focusEl) focusEl = el;
+        continue;
       }
     }
+  }
+
+  if(missing.length){
+    msgs.push(`Preencha os campos obrigatórios: ${missing.join(", ")}.`);
+  }
+  if(invalid.length){
+    msgs.push(`Revise os campos: ${invalid.join(" | ")}.`);
+  }
+  if(!ok && focusEl && typeof focusEl.focus === "function"){
+    focusEl.focus();
+  }
+  if(!ok && firstMissingEl){
+    showFieldPopup(firstMissingEl, "Campo obrigatório");
+  } else if(!ok){
+    hideFieldPopup();
   }
 
   if(ok && stepNumber === 3){
@@ -269,6 +416,12 @@ function validateStep(stepNumber){
       msgs.push("Prestação de contas fora do prazo. Informe a justificativa.");
     }
   }
+  if(stepNumber === 6){
+    const sel = form.querySelector('[name="viagem_realizada"]');
+    if(sel && alertNaoRealizada){
+      alertNaoRealizada.style.display = sel.value === "nao" ? "block" : "none";
+    }
+  }
 
   showErrors(ok ? null : msgs);
   return ok;
@@ -277,6 +430,15 @@ function validateStep(stepNumber){
 /* Conditional org detail */
 const orgTipoEl = document.getElementById("org_tipo");
 const orgWrap = document.getElementById("orgDetalheWrap");
+const alertNaoRealizada = document.getElementById("alertNaoRealizada");
+const viagemSel = document.querySelector('[name="viagem_realizada"]');
+if(viagemSel){
+  viagemSel.addEventListener("change", () => {
+    if(alertNaoRealizada){
+      alertNaoRealizada.style.display = viagemSel.value === "nao" ? "block" : "none";
+    }
+  });
+}
 orgTipoEl.addEventListener("change", () => {
   const v = orgTipoEl.value;
   const show = (v === "projetos" || v === "outros");
@@ -317,7 +479,7 @@ function formToJSON(){
     setDeep(obj, k, v);
   }
   obj.flags = obj.flags || {};
-  obj.flags.prestacao_contas_fora_prazo = !!obj.flags.prestacao_contas_fora_prazo;
+  obj.flags.prestacao_contas_fora_prazo = flagPrazoEl ? !!flagPrazoEl.checked : !!obj.flags.prestacao_contas_fora_prazo;
 
   try{
     obj.afastamento.ida.data_hora = normalizeDT(obj.afastamento.ida.data_hora);
@@ -584,7 +746,11 @@ if(importInput) importInput.addEventListener("change", () => {
 
 // --------- utilidades (iguais ao Anexo I) ---------
 function onlyDigits(s){ return (s || "").replace(/\D+/g, ""); }
-function isEmail(s){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s || ""); }
+function isEmail(s){
+  const email = (s || "").trim();
+  const basic = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$/;
+  return basic.test(email);
+}
 function isPhoneDigits(s){ return /^[0-9]{10,11}$/.test(s || ""); }
 function isSiape(s){ return /^[0-9]{4,15}$/.test(s || ""); }
 function isMinMax(s, min, max){ const t=(s||"").trim(); return t.length>=min && t.length<=max; }
@@ -644,6 +810,11 @@ function isCPF(cpf){
   cpf = onlyDigits(cpf);
   if(!/^[0-9]{11}$/.test(cpf)) return false;
   if(/^(\d)\1{10}$/.test(cpf)) return false;
+  const blacklist = [
+    "12345678909","01234567890","11111111111","22222222222","33333333333",
+    "44444444444","55555555555","66666666666","77777777777","88888888888","99999999999"
+  ];
+  if(blacklist.includes(cpf)) return false;
 
   let sum = 0;
   for(let i=0;i<9;i++) sum += parseInt(cpf[i]) * (10-i);
@@ -773,6 +944,24 @@ function c2mode(mode){
   c2.textRow.style.display = mode === "text" ? "flex" : "none";
   c2.dateRow.style.display = mode === "date" ? "flex" : "none";
   c2.dtRow.style.display = mode === "datetime" ? "flex" : "none";
+  if(mode === "text"){
+    const ph = {
+      "proposto.nome": "Digite o nome completo",
+      "proposto.cpf": "Digite o CPF",
+      "proposto.siape": "Digite o SIAPE",
+      "proposto.orgao.detalhe": "Digite o detalhe do órgão",
+      "afastamento.ida.origem": "Digite a origem da ida",
+      "afastamento.ida.destino": "Digite o destino da ida",
+      "afastamento.retorno.origem_text": "Digite a origem do retorno",
+      "afastamento.retorno.destino_text": "Digite o destino do retorno",
+      "atividades_livre": "Descreva as atividades realizadas",
+      "nao_realizada_motivo": "Informe o motivo da não realização",
+      "just_prazo": "Digite a justificativa fora do prazo"
+    }[chat2full.state] || "Digite aqui...";
+    if(c2.text) c2.text.placeholder = ph;
+  } else if(c2.text){
+    c2.text.placeholder = "Digite aqui...";
+  }
   if(mode === "date" && c2.date) c2.date.value = "";
   if(mode === "datetime" && c2.dt) c2.dt.value = "";
 }
@@ -984,7 +1173,7 @@ function ask2(){
     if(preset){
       chat2full.data.data_relatorio = preset;
       const presetDisplay = formatDateBR(preset) || preset;
-      c2bubble("bot", `Usei a data automática do relatório: ${presetDisplay}.`);
+      c2bubble("bot", `Usar data atual: ${presetDisplay}.`);
       chat2full.state = "proposto.nome";
       ask2();
       return;
@@ -995,7 +1184,7 @@ function ask2(){
   }
 
   // dados do proposto (campos do ANEXO II)
-  if(s === "proposto.nome") return askText("Nome completo do proposto (sem abreviações).");
+  if(s === "proposto.nome") return askText("Seu nome completo (sem abreviações).");
   if(s === "proposto.cpf") return askText("CPF do proposto (somente números).");
   if(s === "proposto.siape") return askText("SIAPE do proposto (somente números).");
   if(s === "proposto.orgao.tipo"){
@@ -1089,10 +1278,7 @@ function ask2(){
 Ao aplicar, eu preencho o formulário manual e te levo para o início para revisão.`;
 
     return askQuick(resumo, [
-      {label:"Aplicar no formulário", primary:true, onClick:()=>finalizeChatAnexo2ToManual()},
-      {label:"Corrigir dados do proposto", onClick:()=>{ chat2full.state="proposto.nome"; ask2(); }},
-      {label:"Corrigir datas", onClick:()=>{ chat2full.state="afastamento.ida.data_hora"; ask2(); }},
-      {label:"Corrigir atividades", onClick:()=>{ chat2full.state="atividades_mode"; ask2(); }},
+      {label:"Aplicar e revisar", primary:true, onClick:()=>finalizeChatAnexo2ToManual()},
     ]);
   }
 }
@@ -1273,8 +1459,6 @@ if(c2.send) c2.send.addEventListener("click", () => {
   const v = (c2.text.value || "").trim();
   if(!v) return;
 
-  c2bubble("user", v);
-
   const s = chat2full.state;
 
   if(
@@ -1354,13 +1538,13 @@ document.getElementById("btnNext").addEventListener("click", () => {
   gotoStep(current + 1);
 });
 document.getElementById("btnDocx").addEventListener("click", async () => {
-  for(let i=1;i<=5;i++){
+  for(let i=1;i<=total;i++){
     if(!validateStep(i)){ gotoStep(i); return; }
   }
   await generate("docx");
 });
 document.getElementById("btnPdf").addEventListener("click", async () => {
-  for(let i=1;i<=5;i++){
+  for(let i=1;i<=total;i++){
     if(!validateStep(i)){ gotoStep(i); return; }
   }
   await generate("pdf");

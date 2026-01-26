@@ -198,6 +198,19 @@ Se passar do prazo, o sistema vai avisar e pedir uma justificativa.
 
 ---
 
+## 🧠 Fundamentos de IA e automação usados
+
+- **Validação baseada em regras (raciocínio simbólico):** o backend (`app/services/validate_anexo1.py` e `app/services/validate_anexo2.py`) cruza datas, tipo de solicitação e flags para bloquear inconsistências (retorno < ida, missão fora do intervalo, pedido fora do prazo) e exigir justificativas quando necessário. O frontend (`app/static/anexo1.js` e `app/static/anexo2.js`) replica as mesmas regras para feedback imediato.
+- **Representação de conhecimento com JSON Schema:** os esquemas em `app/schemas/anexo1.schema.json` e `app/schemas/anexo2.schema.json` descrevem os campos, formatos e condicionais (ex.: detalhar órgão em “Projetos/Outros”), servindo de contrato único para captura e validação dos dados.
+- **Inferência temporal e detecção de prazos:** as constantes de negócio em `app/settings.py` (10, 30 e 5 dias) alimentam cálculos de prazo e marcadores automáticos de fim de semana/feriado, funcionando como um pequeno motor de restrições para “fora do prazo” e “envolve_fds_feriado_ou_dia_anterior”.
+- **Extração de informação de documentos (Document AI sem ML):** o importador `app/services/anexo1_import.py` usa `pdfplumber` + expressões regulares/normalização para ler Anexo I em PDF/DOC/DOCX, localizar rótulos e valores e pré-preencher o formulário. Avisos são emitidos quando algum campo não foi lido com confiança.
+- **Assistente conversacional determinístico:** os chats embutidos nos formulários são máquinas de estado no próprio navegador (`app/static/anexo1.js` e `app/static/anexo2.js`) que conduzem o usuário passo a passo, reutilizando validações de CPF/SIAPE/datas e sugerindo próximos campos — sem depender de serviços externos ou LLMs.
+- **Geração orientada a templates:** o preenchimento é feito por mapeamento direto de placeholders `{{campo}}` (`app/services/docx_render.py`), separando lógica de negócio do layout e permitindo evoluções controladas nos modelos Word e na conversão para PDF (`app/services/pdf_convert.py`).
+
+> Nota: não há modelos de machine learning ou LLM em execução; a “inteligência” vem de regras explícitas, inferência de datas e extração heurística de texto.
+
+---
+
 ## 📝 Como os documentos são gerados
 
 ### Fluxo de preenchimento

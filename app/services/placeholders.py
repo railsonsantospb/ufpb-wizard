@@ -11,6 +11,21 @@ def _fmt_dt(s: str) -> str:
     dt = datetime.fromisoformat(s)
     return dt.strftime("%d/%m/%Y %H:%M")
 
+def _fmt_dt_opt(s: str | None) -> str:
+    if not s:
+        return ""
+    try:
+        return _fmt_dt(s)
+    except Exception:
+        return ""
+
+def _normalize_trechos(value: Any) -> list[dict]:
+    if isinstance(value, list):
+        return [v for v in value if isinstance(v, dict)]
+    if isinstance(value, dict):
+        return [value]
+    return []
+
 def _x(flag: bool) -> str:
     return "X" if flag else ""
 
@@ -51,13 +66,13 @@ def build_placeholders_anexo1(payload: Dict[str, Any], flags: Dict[str, Any]) ->
 
         "motivo_viagem": payload["motivo_viagem"],
 
-        "ida_origem": trechos["ida"]["origem"],
-        "ida_destino": trechos["ida"]["destino"],
-        "ida_data_hora": _fmt_dt(trechos["ida"]["data_hora"]),
+        "ida_origem": "\n".join((t.get("origem") or "") for t in _normalize_trechos(trechos.get("ida"))),
+        "ida_destino": "\n".join((t.get("destino") or "") for t in _normalize_trechos(trechos.get("ida"))),
+        "ida_data_hora": "\n".join(_fmt_dt_opt(t.get("data_hora")) for t in _normalize_trechos(trechos.get("ida"))),
 
-        "retorno_origem": trechos["retorno"]["origem"],
-        "retorno_destino": trechos["retorno"]["destino"],
-        "retorno_data_hora": _fmt_dt(trechos["retorno"]["data_hora"]),
+        "retorno_origem": "\n".join((t.get("origem") or "") for t in _normalize_trechos(trechos.get("retorno"))),
+        "retorno_destino": "\n".join((t.get("destino") or "") for t in _normalize_trechos(trechos.get("retorno"))),
+        "retorno_data_hora": "\n".join(_fmt_dt_opt(t.get("data_hora")) for t in _normalize_trechos(trechos.get("retorno"))),
 
         "missao_inicio_data_hora": _fmt_dt(missao["inicio_data_hora"]),
         "missao_termino_data_hora": _fmt_dt(missao["termino_data_hora"]),

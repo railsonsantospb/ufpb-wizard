@@ -781,10 +781,21 @@ function parseDateBRToISO(value){
   const iso = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
   return iso ? `${iso[1]}-${iso[2]}-${iso[3]}` : "";
 }
+function maskDateInput(el){
+  if(!el) return;
+  el.addEventListener("input", (ev) => {
+    let v = (ev.target.value || "").replace(/\D+/g, "").slice(0, 8);
+    if(v.length >= 5) v = `${v.slice(0, 2)}/${v.slice(2, 4)}/${v.slice(4)}`;
+    else if(v.length >= 3) v = `${v.slice(0, 2)}/${v.slice(2)}`;
+    ev.target.value = v;
+  });
+}
 function bindBrDateField(displaySelector, hiddenSelector, onChange){
   const display = document.querySelector(displaySelector);
   const hidden = document.querySelector(hiddenSelector);
   if(!display || !hidden) return null;
+
+  maskDateInput(display);
 
   const sync = (iso, force=false) => {
     if(force || !hidden.value) hidden.value = iso || "";
@@ -916,6 +927,8 @@ const c2 = {
   close: document.getElementById("chatFullClose2"),
   open: document.getElementById("btnChatFull2")
 };
+
+maskDateInput(c2.date);
 
 function c2scroll(){ c2.tl.scrollTop = c2.tl.scrollHeight; }
 function c2bubble(role, text){

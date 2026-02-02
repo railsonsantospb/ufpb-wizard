@@ -1,5 +1,15 @@
+function normalizeTrechoList(value) {
+  if (Array.isArray(value)) return value.filter(v => v && typeof v === "object");
+  if (value && typeof value === "object") return [value];
+  return [];
+}
+
 function applyPayloadToFormByName(payload) {
       if (!payload || typeof payload !== "object") return;
+
+      if (payload.trechos) {
+        setTrechoSegmentsFromPayload(payload.trechos);
+      }
 
       const setField = (name, value) => {
         if (name === "data_solicitacao" && dataSolicMirror) {
@@ -37,6 +47,7 @@ function applyPayloadToFormByName(payload) {
           const path = prefix ? `${prefix}.${k}` : k;
 
           if (v === null || v === undefined) return;
+          if (path === "trechos" || path.startsWith("trechos.")) return;
 
           // Arrays: caso especial transporte.meios
       if (Array.isArray(v)) {
@@ -159,6 +170,7 @@ function applyPayloadToFormByName(payload) {
     };
     const getFieldLabel = (el) => {
       const key = el.name || el.id || "";
+      if (el.dataset && el.dataset.label) return el.dataset.label;
       if (FIELD_LABELS[key]) return FIELD_LABELS[key];
       const lbl = el.closest("label");
       if (lbl && (lbl.innerText || lbl.textContent)) {
@@ -166,6 +178,148 @@ function applyPayloadToFormByName(payload) {
       }
       return key || "Campo obrigatório";
     };
+
+    const idaSegmentsEl = document.getElementById("idaSegments");
+    const retornoSegmentsEl = document.getElementById("retornoSegments");
+    const addIdaSegmentBtn = document.getElementById("addIdaSegment");
+    const addRetornoSegmentBtn = document.getElementById("addRetornoSegment");
+
+    function getTrechoContainer(type) {
+      return type === "ida" ? idaSegmentsEl : retornoSegmentsEl;
+    }
+
+    function updateTrechoIndices(type) {
+      const container = getTrechoContainer(type);
+      if (!container) return;
+      const cards = Array.from(container.querySelectorAll("[data-trecho-card]"));
+      const hideRemove = cards.length <= 1;
+      cards.forEach((card, idx) => {
+        const i = idx + 1;
+        card.dataset.index = String(i);
+        const title = card.querySelector("[data-trecho-title]");
+        if (title) title.textContent = `Trecho ${i}`;
+        card.querySelectorAll("input[data-field]").forEach(input => {
+          const field = input.dataset.field || "";
+          const labelBase = field === "data_hora" ? "Data e hora" : (field === "origem" ? "Origem" : "Destino");
+          const typeLabel = type === "ida" ? "ida" : "retorno";
+          input.dataset.label = `${labelBase} (${typeLabel} • trecho ${i})`;
+        });
+        const removeBtn = card.querySelector("[data-remove-trecho]");
+        if (removeBtn) removeBtn.style.display = hideRemove ? "none" : "inline-flex";
+      });
+    }
+
+    function addTrechoSegment(type, values = {}) {
+      const container = getTrechoContainer(type);
+      if (!container) return;
+      const card = document.createElement("div");
+      card.setAttribute("data-trecho-card", "1");
+      card.style.padding = "10px 12px";
+      card.style.border = "1px solid rgba(255,255,255,0.08)";
+      card.style.borderRadius = "10px";
+      card.style.marginBottom = "10px";
+
+      const header = document.createElement("div");
+      header.className = "row";
+      header.style.justifyContent = "space-between";
+      header.style.alignItems = "center";
+      header.style.marginBottom = "6px";
+
+      const title = document.createElement("div");
+      title.setAttribute("data-trecho-title", "1");
+      title.style.fontWeight = "600";
+      title.textContent = "Trecho";
+
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "btn btn-ghost btn-compact";
+      removeBtn.textContent = "Remover";
+      removeBtn.setAttribute("data-remove-trecho", "1");
+      removeBtn.addEventListener("click", () => {
+        card.remove();
+        updateTrechoIndices(type);
+      });
+
+      header.appendChild(title);
+      header.appendChild(removeBtn);
+      card.appendChild(header);
+
+      const grid = document.createElement("div");
+      grid.className = "grid2";
+
+      const addField = (label, field, placeholder, inputType = "text", spanFull = false) => {
+        const wrap = document.createElement("div");
+        if (spanFull) wrap.style.gridColumn = "1/-1";
+        const lab = document.createElement("label");
+        lab.textContent = label;
+        const input = document.createElement("input");
+        input.type = inputType;
+        input.required = true;
+        input.placeholder = placeholder || "";
+        input.dataset.trechoType = type;
+        input.dataset.field = field;
+        const val = values[field];
+        if (inputType === "datetime-local" && typeof val === "string") {
+          input.value = val.slice(0, 16);
+        } else if (val !== undefined && val !== null) {
+          input.value = val;
+        }
+        wrap.appendChild(lab);
+        wrap.appendChild(input);
+        grid.appendChild(wrap);
+      };
+
+      addField("Origem", "origem", "Ex.: João Pessoa/PB");
+      addField("Destino", "destino", "Ex.: Recife/PE");
+      addField("Data e hora", "data_hora", "dd/mm/aaaa hh:mm", "datetime-local", true);
+
+      card.appendChild(grid);
+      container.appendChild(card);
+      updateTrechoIndices(type);
+    }
+
+    function setTrechoSegmentsFromPayload(trechos) {
+      const ida = normalizeTrechoList(trechos?.ida);
+      const ret = normalizeTrechoList(trechos?.retorno);
+      if (idaSegmentsEl) {
+        idaSegmentsEl.innerHTML = "";
+        (ida.length ? ida : [{}]).forEach(v => addTrechoSegment("ida", v));
+      }
+      if (retornoSegmentsEl) {
+        retornoSegmentsEl.innerHTML = "";
+        (ret.length ? ret : [{}]).forEach(v => addTrechoSegment("retorno", v));
+      }
+    }
+
+    function readTrechoSegments(type) {
+      const container = getTrechoContainer(type);
+      if (!container) return [];
+      const cards = Array.from(container.querySelectorAll("[data-trecho-card]"));
+      return cards.map(card => {
+        const values = { origem: "", destino: "", data_hora: "" };
+        card.querySelectorAll("input[data-field]").forEach(input => {
+          const field = input.dataset.field;
+          values[field] = (input.value || "").trim();
+        });
+        return values;
+      });
+    }
+
+    function getTrechoBoundaryDatesFromForm() {
+      const idaList = readTrechoSegments("ida");
+      const retList = readTrechoSegments("retorno");
+      const firstIda = idaList.find(t => t.data_hora)?.data_hora || "";
+      const lastRet = [...retList].reverse().find(t => t.data_hora)?.data_hora || "";
+      return {
+        ida: firstIda ? new Date(firstIda) : null,
+        ret: lastRet ? new Date(lastRet) : null
+      };
+    }
+
+    if (addIdaSegmentBtn) addIdaSegmentBtn.addEventListener("click", () => addTrechoSegment("ida"));
+    if (addRetornoSegmentBtn) addRetornoSegmentBtn.addEventListener("click", () => addTrechoSegment("retorno"));
+    if (idaSegmentsEl && !idaSegmentsEl.children.length) addTrechoSegment("ida");
+    if (retornoSegmentsEl && !retornoSegmentsEl.children.length) addTrechoSegment("retorno");
 
     let lastErrorToast = { msg: "", ts: 0 };
     let fieldPopupEl = null;
@@ -424,8 +578,7 @@ function applyPayloadToFormByName(payload) {
 
       // step-specific cross-field validations (before leaving)
       if (ok && stepNumber === 5) {
-        const ida = dtValue("trechos.ida.data_hora");
-        const ret = dtValue("trechos.retorno.data_hora");
+        const { ida, ret } = getTrechoBoundaryDatesFromForm();
         if (ida && ret && ret < ida) {
           ok = false;
           msgs.push("A data/hora de retorno não pode ser anterior à ida.");
@@ -433,8 +586,7 @@ function applyPayloadToFormByName(payload) {
       }
 
       if (ok && stepNumber === 6) {
-        const ida = dtValue("trechos.ida.data_hora");
-        const ret = dtValue("trechos.retorno.data_hora");
+        const { ida, ret } = getTrechoBoundaryDatesFromForm();
         const mi = dtValue("missao.inicio_data_hora");
         const mt = dtValue("missao.termino_data_hora");
 
@@ -565,6 +717,8 @@ function applyPayloadToFormByName(payload) {
       close: document.getElementById("chatFullClose"),
       open: document.getElementById("btnChatFull")
     };
+
+    maskDateInput(m.date);
 
     // Pré-preenche data da solicitação com a data do servidor e bloqueia edição
     setDataSolicitacaoFromServer();
@@ -720,18 +874,23 @@ function applyPayloadToFormByName(payload) {
       return iso ? `${iso[1]}-${iso[2]}-${iso[3]}` : "";
     }
 
+    function maskDateInput(el) {
+      if (!el) return;
+      el.addEventListener("input", (ev) => {
+        let v = (ev.target.value || "").replace(/\D+/g, "").slice(0, 8);
+        if (v.length >= 5) v = `${v.slice(0, 2)}/${v.slice(2, 4)}/${v.slice(4)}`;
+        else if (v.length >= 3) v = `${v.slice(0, 2)}/${v.slice(2)}`;
+        ev.target.value = v;
+      });
+    }
+
     function bindBrDateField(displaySelector, hiddenSelector, onChange) {
       const display = document.querySelector(displaySelector);
       const hidden = document.querySelector(hiddenSelector);
       if (!display || !hidden) return null;
 
       // mascara simples dd/mm/aaaa
-      display.addEventListener("input", (ev) => {
-        let v = (ev.target.value || "").replace(/\D+/g, "").slice(0,8);
-        if (v.length >= 5) v = `${v.slice(0,2)}/${v.slice(2,4)}/${v.slice(4)}`;
-        else if (v.length >= 3) v = `${v.slice(0,2)}/${v.slice(2)}`;
-        ev.target.value = v;
-      });
+      maskDateInput(display);
 
       const sync = (iso, force = false) => {
         if (force || !hidden.value) hidden.value = iso || "";
@@ -1571,10 +1730,12 @@ Depois disso, você pode revisar os campos no formulário e gerar o DOC/PDF.`;
         const cpf = payload?.servidor?.cpf || "";
         const cpfMask = cpf && cpf.length === 11 ? (cpf.slice(0, 3) + "***" + cpf.slice(-2)) : "—";
         const fmtDT = (v) => formatDateTimeBR(v) || "—";
+        const idaLines = formatTrechosLines(payload?.trechos?.ida, fmtDT);
+        const retLines = formatTrechosLines(payload?.trechos?.retorno, fmtDT);
         downloadSummary.textContent =
           `Servidor: ${payload?.servidor?.nome_completo || "—"} | CPF: ${cpfMask}\n` +
-          `Ida: ${payload?.trechos?.ida?.origem || "—"} → ${payload?.trechos?.ida?.destino || "—"} | ${fmtDT(payload?.trechos?.ida?.data_hora)}\n` +
-          `Retorno: ${payload?.trechos?.retorno?.origem || "—"} → ${payload?.trechos?.retorno?.destino || "—"} | ${fmtDT(payload?.trechos?.retorno?.data_hora)}`;
+          `Ida:\n${idaLines.map(l => "  " + l).join("\n")}\n` +
+          `Retorno:\n${retLines.map(l => "  " + l).join("\n")}`;
 
         downloadModal.style.display = "block";
       }
@@ -1836,6 +1997,7 @@ Depois disso, você pode revisar os campos no formulário e gerar o DOC/PDF.`;
       // texto e selects
       for (const [k, v] of fd.entries()) {
         if (k === "transporte.meios") continue;
+        if (k.startsWith("trechos.")) continue;
 
         if (k.startsWith("flags.")) {
           setDeep(obj, k, true);
@@ -1856,10 +2018,21 @@ Depois disso, você pode revisar os campos no formulário e gerar o DOC/PDF.`;
       obj.transporte = obj.transporte || {};
       obj.transporte.termo_veiculo_proprio_ciente = !!obj.transporte.termo_veiculo_proprio_ciente;
 
+      // trechos (ida/retorno) em lista
+      const idaSegs = readTrechoSegments("ida").map(t => ({
+        origem: t.origem,
+        destino: t.destino,
+        data_hora: normalizeDT(t.data_hora)
+      }));
+      const retSegs = readTrechoSegments("retorno").map(t => ({
+        origem: t.origem,
+        destino: t.destino,
+        data_hora: normalizeDT(t.data_hora)
+      }));
+      obj.trechos = { ida: idaSegs, retorno: retSegs };
+
       // normalize date-time fields
       try {
-        obj.trechos.ida.data_hora = normalizeDT(obj.trechos.ida.data_hora);
-        obj.trechos.retorno.data_hora = normalizeDT(obj.trechos.retorno.data_hora);
         obj.missao.inicio_data_hora = normalizeDT(obj.missao.inicio_data_hora);
         obj.missao.termino_data_hora = normalizeDT(obj.missao.termino_data_hora);
       } catch (e) { }
@@ -1875,12 +2048,11 @@ Depois disso, você pode revisar os campos no formulário e gerar o DOC/PDF.`;
     /* ---------------- Auto flags ---------------- */
     function refreshAutoFlags() {
       // auto weekend flag from ida date
-      const idaEl = form.querySelector('[name="trechos.ida.data_hora"]');
       const tipoEl = form.querySelector('[name="tipo_solicitacao"]');
       const dataSolicEl = form.querySelector('[name="data_solicitacao"]');
       const badgeFds = document.getElementById("badgeFds");
 
-      const ida = idaEl.value ? new Date(idaEl.value) : null;
+      const ida = getTrechoBoundaryDatesFromForm().ida;
 
       if (ida) {
         const wd = ida.getDay(); // 0 dom ... 6 sab
@@ -1919,12 +2091,25 @@ Depois disso, você pode revisar os campos no formulário e gerar o DOC/PDF.`;
     }
 
     /* ---------------- Review ---------------- */
+    function formatTrechosLines(list, fmtDT) {
+      const items = Array.isArray(list) ? list : normalizeTrechoList(list);
+      if (!items.length) return ["—"];
+      return items.map((t, i) => {
+        const origem = t?.origem || "—";
+        const destino = t?.destino || "—";
+        const dh = fmtDT(t?.data_hora);
+        return `${i + 1}) ${origem} → ${destino} (${dh})`;
+      });
+    }
+
     function renderReview() {
       refreshAutoFlags();
 
       const p = formToJSON();
       const fmtDate = (v) => formatDateBR(v) || "—";
       const fmtDT = (v) => formatDateTimeBR(v) || "—";
+      const idaLines = formatTrechosLines(p.trechos?.ida, fmtDT);
+      const retLines = formatTrechosLines(p.trechos?.retorno, fmtDT);
       const resumo = [
         "Resumo amigável:",
         "",
@@ -1935,8 +2120,10 @@ Depois disso, você pode revisar os campos no formulário e gerar o DOC/PDF.`;
         `• CPF: ${p.servidor?.cpf || "—"} | SIAPE: ${p.servidor?.siape || "—"} | E-mail: ${p.servidor?.email || "—"}`,
         "",
         "Viagem:",
-        `• Ida: ${p.trechos?.ida?.origem || "—"} → ${p.trechos?.ida?.destino || "—"} (${fmtDT(p.trechos?.ida?.data_hora)})`,
-        `• Retorno: ${p.trechos?.retorno?.origem || "—"} → ${p.trechos?.retorno?.destino || "—"} (${fmtDT(p.trechos?.retorno?.data_hora)})`,
+        "• Ida:",
+        ...idaLines.map(l => `  ${l}`),
+        "• Retorno:",
+        ...retLines.map(l => `  ${l}`),
         "",
         "Missão:",
         `• Início: ${fmtDT(p.missao?.inicio_data_hora)} | Término: ${fmtDT(p.missao?.termino_data_hora)}`,
@@ -2218,6 +2405,7 @@ Depois disso, você pode revisar os campos no formulário e gerar o DOC/PDF.`;
       ${input("g_data_sol", "Data da solicitação", "text", formatDateBR(a.data_solicitacao), "dd/mm/aaaa")}
       <div class="helper">Prazo será verificado automaticamente pelo sistema (10/30 dias) usando a data da ida.</div>
     `;
+        setTimeout(() => maskDateInput(document.getElementById("g_data_sol")), 0);
         return;
       }
 

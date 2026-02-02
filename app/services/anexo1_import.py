@@ -403,8 +403,8 @@ def build_anexo1_prefill(parsed: Dict[str, Any]) -> Dict[str, Any]:
             },
         },
         "trechos": {
-            "ida": {"origem": ida.get("local_origem"), "destino": ida.get("local_destino"), "data_hora": ida_dt},
-            "retorno": {"origem": ret.get("local_origem"), "destino": ret.get("local_destino"), "data_hora": ret_dt},
+            "ida": [{"origem": ida.get("local_origem"), "destino": ida.get("local_destino"), "data_hora": ida_dt}],
+            "retorno": [{"origem": ret.get("local_origem"), "destino": ret.get("local_destino"), "data_hora": ret_dt}],
         },
         "missao": {"inicio_data_hora": mi_dt, "termino_data_hora": mf_dt},
         "debito_recurso": _map_debito_recurso_anexo1(parsed.get("debito_recurso")),
@@ -415,7 +415,7 @@ def build_anexo1_prefill(parsed: Dict[str, Any]) -> Dict[str, Any]:
     return clean(prefill)
 
 
-def build_anexo1_warnings(prefill: Dict[str, Any]) -> List[str]:
+def build_anexo1_warnings(prefill: Dict[str, Any], *, skip_trechos: bool = False) -> List[str]:
     warnings: List[str] = []
     servidor = prefill.get("servidor") or {}
     trechos = prefill.get("trechos") or {}
@@ -430,14 +430,17 @@ def build_anexo1_warnings(prefill: Dict[str, Any]) -> List[str]:
     if not servidor.get("data_nascimento"):
         warnings.append("Data de nascimento não encontrada.")
 
-    ida = trechos.get("ida") or {}
-    ret = trechos.get("retorno") or {}
-    if not ida.get("origem") or not ida.get("destino"):
-        warnings.append("Trecho de ida incompleto; revise origem/destino.")
-    if not ret.get("origem") or not ret.get("destino"):
-        warnings.append("Trecho de retorno incompleto; revise origem/destino.")
-    if not ida.get("data_hora") or not ret.get("data_hora"):
-        warnings.append("Datas/horários não foram lidos; informe manualmente.")
+    if not skip_trechos:
+        ida_list = trechos.get("ida") or []
+        ret_list = trechos.get("retorno") or []
+        ida = ida_list[0] if isinstance(ida_list, list) and ida_list else {}
+        ret = ret_list[0] if isinstance(ret_list, list) and ret_list else {}
+        if not ida.get("origem") or not ida.get("destino"):
+            warnings.append("Trecho de ida incompleto; revise origem/destino.")
+        if not ret.get("origem") or not ret.get("destino"):
+            warnings.append("Trecho de retorno incompleto; revise origem/destino.")
+        if not ida.get("data_hora") or not ret.get("data_hora"):
+            warnings.append("Datas/horários não foram lidos; informe manualmente.")
 
     if not deb.get("tipo"):
         warnings.append("Débito do recurso não identificado; selecione manualmente.")
@@ -460,5 +463,6 @@ def extract_prefill_for_anexo1(source: Path | str) -> Anexo1SelfPrefillResult:
         raise ValueError("Não foi possível interpretar o documento.")
 
     prefill = build_anexo1_prefill(parsed)
-    warnings = build_anexo1_warnings(prefill)
+    prefill["trechos"] = {"ida": [], "retorno": []}
+    warnings = build_anexo1_warnings(prefill, skip_trechos=True)
     return Anexo1SelfPrefillResult(prefill=prefill, warnings=warnings)

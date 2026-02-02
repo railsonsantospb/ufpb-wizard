@@ -16,6 +16,21 @@ def _parse_dt(s: str) -> datetime:
 def _is_with_passagens(tipo_solicitacao: str) -> bool:
     return tipo_solicitacao in ("passagens", "diarias_e_passagens")
 
+def _normalize_trecho_list(value: Any) -> list[Dict[str, Any]]:
+    if isinstance(value, list):
+        return [v for v in value if isinstance(v, dict)]
+    if isinstance(value, dict):
+        return [value]
+    return []
+
+def _fmt_dt_opt(value: Any) -> str:
+    if not value:
+        return ""
+    try:
+        return datetime.fromisoformat(value).strftime("%d/%m/%Y %H:%M")
+    except Exception:
+        return ""
+
 def validate_and_enrich_anexo1(payload: Dict[str, Any]) -> Dict[str, Any]:
     errors = []
 
@@ -28,14 +43,36 @@ def validate_and_enrich_anexo1(payload: Dict[str, Any]) -> Dict[str, Any]:
     if not data_solic:
         errors.append({"field": "data_solicitacao", "message": "Informe a data da solicitação."})
 
-    # datas principais
+    # trechos (lista ou objeto único)
+    trechos = payload.get("trechos") or {}
+    ida_list = _normalize_trecho_list(trechos.get("ida"))
+    ret_list = _normalize_trecho_list(trechos.get("retorno"))
+    payload["trechos"] = {"ida": ida_list, "retorno": ret_list}
+
+    if not ida_list:
+        errors.append({"field": "trechos.ida", "message": "Informe ao menos um trecho de ida."})
+    if not ret_list:
+        errors.append({"field": "trechos.retorno", "message": "Informe ao menos um trecho de retorno."})
+    for t in ida_list:
+        if not t.get("data_hora"):
+            errors.append({"field": "trechos.ida", "message": "Informe datas/horas válidas para todos os trechos de ida."})
+            break
+    for t in ret_list:
+        if not t.get("data_hora"):
+            errors.append({"field": "trechos.retorno", "message": "Informe datas/horas válidas para todos os trechos de retorno."})
+            break
+
+    # datas principais (usa primeiro/último trecho)
+    ida = ret = None
     try:
-        ida = _parse_dt(payload["trechos"]["ida"]["data_hora"])
-        ret = _parse_dt(payload["trechos"]["retorno"]["data_hora"])
-        if ret < ida:
+        if ida_list:
+            ida = _parse_dt(ida_list[0]["data_hora"])
+        if ret_list:
+            ret = _parse_dt(ret_list[-1]["data_hora"])
+        if ida and ret and ret < ida:
             errors.append({"field": "trechos", "message": "A data/hora de retorno não pode ser anterior à ida."})
     except Exception:
-        errors.append({"field": "trechos", "message": "Informe datas/horas válidas para ida e retorno."})
+        errors.append({"field": "trechos", "message": "Informe datas/horas válidas para os trechos de ida e retorno."})
         ida = ret = None
 
     try:
@@ -80,5 +117,22 @@ def validate_and_enrich_anexo1(payload: Dict[str, Any]) -> Dict[str, Any]:
     if errors:
         return {"ok": False, "errors": errors, "flags": flags}
 
+    ida_rows = [
+        {
+            "ida_origem": t.get("origem") or "",
+            "ida_destino": t.get("destino") or "",
+            "ida_data_hora": _fmt_dt_opt(t.get("data_hora")),
+        }
+        for t in ida_list
+    ]
+    ret_rows = [
+        {
+            "retorno_origem": t.get("origem") or "",
+            "retorno_destino": t.get("destino") or "",
+            "retorno_data_hora": _fmt_dt_opt(t.get("data_hora")),
+        }
+        for t in ret_list
+    ]
+
     placeholders = build_placeholders_anexo1(payload, flags)
-    return {"ok": True, "flags": flags, "placeholders": placeholders}
+    return {"ok": True, "flags": flags, "placeholders": placeholders, "rows": {"ida": ida_rows, "retorno": ret_rows}}

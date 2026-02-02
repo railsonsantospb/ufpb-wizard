@@ -192,40 +192,16 @@
       <section class="card step" data-step="4" data-title="Trecho de ida"
         data-subtitle="Origem, destino e data/hora da partida.">
         <h2>4) Ida</h2>
-        <div class="grid2">
-          <div>
-            <label>Origem</label>
-            <input name="trechos.ida.origem" required placeholder="Ex.: João Pessoa/PB">
-          </div>
-          <div>
-            <label>Destino</label>
-            <input name="trechos.ida.destino" required placeholder="Ex.: Recife/PE">
-          </div>
-          <div style="grid-column:1/-1;">
-            <label>Data e hora da ida</label>
-            <input name="trechos.ida.data_hora" type="datetime-local" required placeholder="dd/mm/aaaa hh:mm">
-          </div>
-        </div>
+        <div id="idaSegments" class="segment-list"></div>
+        <button type="button" class="btn btn-ghost btn-compact" id="addIdaSegment">+ Adicionar trecho de ida</button>
       </section>
 
       <!-- STEP 5: Retorno -->
       <section class="card step" data-step="5" data-title="Trecho de retorno"
         data-subtitle="Origem, destino e data/hora do retorno.">
         <h2>5) Retorno</h2>
-        <div class="grid2">
-          <div>
-            <label>Origem</label>
-            <input name="trechos.retorno.origem" required placeholder="Ex.: Recife/PE">
-          </div>
-          <div>
-            <label>Destino</label>
-            <input name="trechos.retorno.destino" required placeholder="Ex.: João Pessoa/PB">
-          </div>
-          <div style="grid-column:1/-1;">
-            <label>Data e hora do retorno</label>
-            <input name="trechos.retorno.data_hora" type="datetime-local" required placeholder="dd/mm/aaaa hh:mm">
-          </div>
-        </div>
+        <div id="retornoSegments" class="segment-list"></div>
+        <button type="button" class="btn btn-ghost btn-compact" id="addRetornoSegment">+ Adicionar trecho de retorno</button>
         <div class="helper">Regra: retorno não pode ser anterior à ida.</div>
       </section>
 

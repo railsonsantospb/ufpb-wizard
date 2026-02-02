@@ -166,7 +166,7 @@ def generate_anexo1(payload: dict, format: Literal["docx", "pdf"] = Query("docx"
         raise HTTPException(500, "Template anexo1_template.docx não encontrado em app/templates.")
 
     out_docx = settings.data_dir / f"anexo1_{uuid.uuid4()}.docx"
-    render_docx_from_template(template, out_docx, enriched["placeholders"])
+    render_docx_from_template(template, out_docx, enriched["placeholders"], rows=enriched.get("rows"))
 
     if format == "docx":
         return FileResponse(out_docx, filename="anexo1_preenchido.docx")

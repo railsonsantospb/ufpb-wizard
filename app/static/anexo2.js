@@ -1,5 +1,6 @@
 function applyPayloadToFormByNameAnexo2(payload){
   if(!payload || typeof payload !== "object") return;
+  if(payload.afastamento) setAfastSegmentsFromPayload(payload.afastamento);
 
   const setField = (name, value) => {
     if(name === "data_relatorio" && dataRelMirror){
@@ -83,8 +84,10 @@ function showIssuesAnexo2(issues){
 function validatePayloadAnexo2(payload){
   const issues = [];
 
-  const ida = payload?.afastamento?.ida?.data_hora ? new Date(payload.afastamento.ida.data_hora) : null;
-  const ret = payload?.afastamento?.retorno?.data_hora ? new Date(payload.afastamento.retorno.data_hora) : null;
+  const idaList = normalizeAfastList(payload?.afastamento?.ida);
+  const retList = normalizeAfastList(payload?.afastamento?.retorno);
+  const ida = idaList[0]?.data_hora ? new Date(idaList[0].data_hora) : null;
+  const ret = retList.length ? new Date(retList[retList.length - 1].data_hora) : null;
 
   if(ida && ret && ret < ida){
     issues.push({
@@ -164,6 +167,10 @@ const statusBadge = document.getElementById("statusBadge");
 const elGenProgress = document.getElementById("generateProgress");
 const dataRelMirror = bindBrDateField("#dataRelDisplay", '[name="data_relatorio"]', () => refreshAutoFlags());
 const flagPrazoEl = document.getElementById("flagPrazo");
+syncLocalInputs("afastamento.ida.origem");
+syncLocalInputs("afastamento.ida.destino");
+syncLocalInputs("afastamento.retorno.origem");
+syncLocalInputs("afastamento.retorno.destino");
 const FIELD_LABELS = {
   dataRelDisplay: "Data do relatório",
   "proposto.nome": "Nome completo",
@@ -171,11 +178,15 @@ const FIELD_LABELS = {
   "proposto.siape": "SIAPE",
   "proposto.orgao.tipo": "Órgão",
   "proposto.orgao.detalhe": "Detalhe do órgão",
-  "afastamento.ida.origem": "Origem (ida)",
-  "afastamento.ida.destino": "Destino (ida)",
+  "afastamento.ida.origem_cidade": "Cidade de origem (ida)",
+  "afastamento.ida.origem_uf": "UF de origem (ida)",
+  "afastamento.ida.destino_cidade": "Cidade de destino (ida)",
+  "afastamento.ida.destino_uf": "UF de destino (ida)",
   "afastamento.ida.data_hora": "Data/hora da ida",
-  "afastamento.retorno.origem": "Origem (retorno)",
-  "afastamento.retorno.destino": "Destino (retorno)",
+  "afastamento.retorno.origem_cidade": "Cidade de origem (retorno)",
+  "afastamento.retorno.origem_uf": "UF de origem (retorno)",
+  "afastamento.retorno.destino_cidade": "Cidade de destino (retorno)",
+  "afastamento.retorno.destino_uf": "UF de destino (retorno)",
   "afastamento.retorno.data_hora": "Data/hora do retorno",
   atividades_desenvolvidas: "Atividades desenvolvidas",
   justPrazo: "Justificativa (fora do prazo)",
@@ -187,6 +198,7 @@ const PATTERN_TIPS = {
 };
 const getFieldLabel = (el) => {
   const key = el.name || el.id || "";
+  if (el.dataset && el.dataset.label) return el.dataset.label;
   if (FIELD_LABELS[key]) return FIELD_LABELS[key];
   const lbl = el.closest("label");
   if (lbl && (lbl.innerText || lbl.textContent)) {
@@ -194,6 +206,194 @@ const getFieldLabel = (el) => {
   }
   return key || "Campo obrigatório";
 };
+
+const idaSegmentsEl = document.getElementById("idaSegments2");
+const retornoSegmentsEl = document.getElementById("retornoSegments2");
+const addIdaSegmentBtn = document.getElementById("addIdaSegment2");
+const addRetornoSegmentBtn = document.getElementById("addRetornoSegment2");
+
+function normalizeAfastList(value){
+  if(Array.isArray(value)) return value.filter(v => v && typeof v === "object");
+  if(value && typeof value === "object") return [value];
+  return [];
+}
+
+function getAfastContainer(type){
+  return type === "ida" ? idaSegmentsEl : retornoSegmentsEl;
+}
+
+function updateAfastIndices(type){
+  const container = getAfastContainer(type);
+  if(!container) return;
+  const cards = Array.from(container.querySelectorAll("[data-trecho-card]"));
+  const hideRemove = cards.length <= 1;
+  cards.forEach((card, idx) => {
+    const i = idx + 1;
+    const title = card.querySelector("[data-trecho-title]");
+    if(title) title.textContent = `Trecho ${i}`;
+    card.querySelectorAll("input[data-field]").forEach(input => {
+      const field = input.dataset.field || "";
+      const labelBase = (
+        field === "data_hora" ? "Data e hora"
+        : field === "origem_cidade" ? "Cidade de origem"
+        : field === "origem_uf" ? "UF de origem"
+        : field === "destino_cidade" ? "Cidade de destino"
+        : field === "destino_uf" ? "UF de destino"
+        : field === "origem" ? "Origem"
+        : "Destino"
+      );
+      const typeLabel = type === "ida" ? "ida" : "retorno";
+      input.dataset.label = `${labelBase} (${typeLabel} • trecho ${i})`;
+    });
+    const removeBtn = card.querySelector("[data-remove-trecho]");
+    if(removeBtn) removeBtn.style.display = hideRemove ? "none" : "inline-flex";
+  });
+}
+
+function addAfastSegment(type, values = {}){
+  const container = getAfastContainer(type);
+  if(!container) return;
+  const origemSplit = splitLocal(values.origem);
+  const destinoSplit = splitLocal(values.destino);
+
+  const card = document.createElement("div");
+  card.setAttribute("data-trecho-card", "1");
+  card.style.padding = "10px 12px";
+  card.style.border = "1px solid rgba(255,255,255,0.08)";
+  card.style.borderRadius = "10px";
+  card.style.marginBottom = "10px";
+
+  const header = document.createElement("div");
+  header.className = "row";
+  header.style.justifyContent = "space-between";
+  header.style.alignItems = "center";
+  header.style.marginBottom = "6px";
+
+  const title = document.createElement("div");
+  title.setAttribute("data-trecho-title", "1");
+  title.style.fontWeight = "600";
+  title.textContent = "Trecho";
+
+  const removeBtn = document.createElement("button");
+  removeBtn.type = "button";
+  removeBtn.className = "btn btn-ghost btn-compact";
+  removeBtn.textContent = "Remover";
+  removeBtn.setAttribute("data-remove-trecho", "1");
+  removeBtn.addEventListener("click", () => {
+    card.remove();
+    updateAfastIndices(type);
+  });
+
+  header.appendChild(title);
+  header.appendChild(removeBtn);
+  card.appendChild(header);
+
+  const grid = document.createElement("div");
+  grid.className = "grid2";
+
+  const addField = (label, field, placeholder, inputType = "text", spanFull = false, attrs = {}) => {
+    const wrap = document.createElement("div");
+    if(spanFull) wrap.style.gridColumn = "1/-1";
+    const lab = document.createElement("label");
+    lab.textContent = label;
+    const input = document.createElement("input");
+    input.type = inputType;
+    input.required = true;
+    input.placeholder = placeholder || "";
+    input.dataset.trechoType = type;
+    input.dataset.field = field;
+    const val = values[field];
+    if(inputType === "datetime-local" && typeof val === "string"){
+      input.value = val.slice(0, 16);
+    }else if(val !== undefined && val !== null){
+      input.value = val;
+    }
+    if(attrs && typeof attrs === "object"){
+      Object.entries(attrs).forEach(([k, v]) => {
+        if(v === null || v === undefined) return;
+        if(k === "className") input.className = v;
+        else if(k === "dataset") Object.entries(v).forEach(([dk, dv]) => input.dataset[dk] = dv);
+        else input.setAttribute(k, v);
+      });
+    }
+    wrap.appendChild(lab);
+    wrap.appendChild(input);
+    grid.appendChild(wrap);
+  };
+
+  addField("Cidade (origem)", "origem_cidade", "Ex.: João Pessoa");
+  addField("UF (origem)", "origem_uf", "Ex.: PB", "text", false, { pattern: "[A-Za-z]{2}", maxlength: "2" });
+  addField("Cidade (destino)", "destino_cidade", "Ex.: Recife");
+  addField("UF (destino)", "destino_uf", "Ex.: PE", "text", false, { pattern: "[A-Za-z]{2}", maxlength: "2" });
+  addField("Data e hora", "data_hora", "dd/mm/aaaa hh:mm", "datetime-local", true);
+
+  const setIfEmpty = (field, value) => {
+    const el = grid.querySelector(`input[data-field="${field}"]`);
+    if(el && !el.value) el.value = value || "";
+  };
+  setIfEmpty("origem_cidade", origemSplit.cidade);
+  setIfEmpty("origem_uf", origemSplit.uf);
+  setIfEmpty("destino_cidade", destinoSplit.cidade);
+  setIfEmpty("destino_uf", destinoSplit.uf);
+
+  card.appendChild(grid);
+  container.appendChild(card);
+  updateAfastIndices(type);
+}
+
+function setAfastSegmentsFromPayload(afast){
+  const ida = normalizeAfastList(afast?.ida);
+  const ret = normalizeAfastList(afast?.retorno);
+  if(idaSegmentsEl){
+    idaSegmentsEl.innerHTML = "";
+    (ida.length ? ida : [{}]).forEach(v => addAfastSegment("ida", v));
+  }
+  if(retornoSegmentsEl){
+    retornoSegmentsEl.innerHTML = "";
+    (ret.length ? ret : [{}]).forEach(v => addAfastSegment("retorno", v));
+  }
+}
+
+function readAfastSegments(type){
+  const container = getAfastContainer(type);
+  if(!container) return [];
+  const cards = Array.from(container.querySelectorAll("[data-trecho-card]"));
+  return cards.map(card => {
+    const values = { origem: "", destino: "", data_hora: "" };
+    let origemCidade = "";
+    let origemUf = "";
+    let destinoCidade = "";
+    let destinoUf = "";
+    card.querySelectorAll("input[data-field]").forEach(input => {
+      const field = input.dataset.field;
+      const val = (input.value || "").trim();
+      if(field === "origem_cidade") origemCidade = val;
+      else if(field === "origem_uf") origemUf = val.toUpperCase();
+      else if(field === "destino_cidade") destinoCidade = val;
+      else if(field === "destino_uf") destinoUf = val.toUpperCase();
+      else values[field] = val;
+    });
+    values.origem = origemCidade ? (origemUf ? `${origemCidade}/${origemUf}` : origemCidade) : "";
+    values.destino = destinoCidade ? (destinoUf ? `${destinoCidade}/${destinoUf}` : destinoCidade) : "";
+    return values;
+  });
+}
+
+function getAfastBoundaryDates(){
+  const idaList = readAfastSegments("ida");
+  const retList = readAfastSegments("retorno");
+  const firstIda = idaList.find(t => t.data_hora)?.data_hora || "";
+  const lastRet = [...retList].reverse().find(t => t.data_hora)?.data_hora || "";
+  return {
+    ida: firstIda ? new Date(firstIda) : null,
+    ret: lastRet ? new Date(lastRet) : null
+  };
+}
+
+if(addIdaSegmentBtn) addIdaSegmentBtn.addEventListener("click", () => addAfastSegment("ida"));
+if(addRetornoSegmentBtn) addRetornoSegmentBtn.addEventListener("click", () => addAfastSegment("retorno"));
+if(idaSegmentsEl && !idaSegmentsEl.children.length) addAfastSegment("ida");
+if(retornoSegmentsEl && !retornoSegmentsEl.children.length) addAfastSegment("retorno");
 
 let lastErrorToast = { msg: "", ts: 0 };
 let fieldPopupEl = null;
@@ -400,8 +600,7 @@ function validateStep(stepNumber){
   }
 
   if(ok && stepNumber === 3){
-    const ida = dtValue("afastamento.ida.data_hora");
-    const ret = dtValue("afastamento.retorno.data_hora");
+    const { ida, ret } = getAfastBoundaryDates();
     if(ida && ret && ret < ida){
       ok = false;
       msgs.push("A data/hora de retorno não pode ser anterior à ida.");
@@ -449,6 +648,10 @@ orgTipoEl.addEventListener("change", () => {
 function applyPrefillAnexo2(prefill){
   if(!prefill || typeof prefill !== "object") return;
   applyPayloadToFormByNameAnexo2(prefill);
+  normalizeLocalFromInputs("afastamento.ida.origem");
+  normalizeLocalFromInputs("afastamento.ida.destino");
+  normalizeLocalFromInputs("afastamento.retorno.origem");
+  normalizeLocalFromInputs("afastamento.retorno.destino");
   if(orgTipoEl) orgTipoEl.dispatchEvent(new Event("change"));
   refreshAutoFlags();
   renderReview();
@@ -472,19 +675,26 @@ function formToJSON(){
   const fd = new FormData(form);
   const obj = {};
   for(const [k,v] of fd.entries()){
+    if(k.startsWith("afastamento.")) continue;
     if(k.startsWith("flags.")){
       setDeep(obj, k, true);
       continue;
     }
     setDeep(obj, k, v);
   }
+  const idaSegs = readAfastSegments("ida").map(t => ({
+    origem: t.origem,
+    destino: t.destino,
+    data_hora: normalizeDT(t.data_hora)
+  }));
+  const retSegs = readAfastSegments("retorno").map(t => ({
+    origem: t.origem,
+    destino: t.destino,
+    data_hora: normalizeDT(t.data_hora)
+  }));
+  obj.afastamento = { ida: idaSegs, retorno: retSegs };
   obj.flags = obj.flags || {};
   obj.flags.prestacao_contas_fora_prazo = flagPrazoEl ? !!flagPrazoEl.checked : !!obj.flags.prestacao_contas_fora_prazo;
-
-  try{
-    obj.afastamento.ida.data_hora = normalizeDT(obj.afastamento.ida.data_hora);
-    obj.afastamento.retorno.data_hora = normalizeDT(obj.afastamento.retorno.data_hora);
-  }catch(e){}
   return obj;
 }
 
@@ -502,10 +712,9 @@ function setPrazoUI(isFora){
 }
 
 function refreshAutoFlags(){
-  const retEl = form.querySelector('[name="afastamento.retorno.data_hora"]');
   const drEl  = form.querySelector('[name="data_relatorio"]');
 
-  const ret = retEl.value ? new Date(retEl.value) : null;
+  const ret = getAfastBoundaryDates().ret;
   const dr  = drEl.value ? new Date(drEl.value + "T00:00:00") : null;
 
   if(ret && dr){
@@ -530,6 +739,11 @@ function renderReview(){
   const fmtDT = (v) => formatDateTimeBR(v) || "—";
   const lines = [];
   function line(label, value){ lines.push(`${label}: ${value || "—"}`); }
+  const fmtSegs = (list) => {
+    const items = normalizeAfastList(list);
+    if(!items.length) return ["—"];
+    return items.map((t, i) => `${i + 1}) ${t?.origem || "—"} → ${t?.destino || "—"} | ${fmtDT(t?.data_hora)}`);
+  };
 
   line("Data do relatório", fmtDate(p.data_relatorio));
   lines.push("\n[Proposto]");
@@ -540,8 +754,8 @@ function renderReview(){
   line("Detalhe", p.proposto?.orgao?.detalhe);
 
   lines.push("\n[Afastamento]");
-  line("Ida", `${p.afastamento?.ida?.origem || "—"} → ${p.afastamento?.ida?.destino || "—"} | ${fmtDT(p.afastamento?.ida?.data_hora)}`);
-  line("Retorno", `${p.afastamento?.retorno?.origem || "—"} → ${p.afastamento?.retorno?.destino || "—"} | ${fmtDT(p.afastamento?.retorno?.data_hora)}`);
+  fmtSegs(p.afastamento?.ida).forEach((txt, idx) => line(idx === 0 ? "Ida" : "Ida (cont.)", txt));
+  fmtSegs(p.afastamento?.retorno).forEach((txt, idx) => line(idx === 0 ? "Retorno" : "Retorno (cont.)", txt));
 
   lines.push("\n[Atividades]");
   line("Descrição", p.atividades_desenvolvidas);
@@ -562,8 +776,10 @@ function renderReview(){
     `Relatório: ${fmtDate(p.data_relatorio)}`,
     "",
     "Afastamento:",
-    `• Ida: ${p.afastamento?.ida?.origem || "—"} → ${p.afastamento?.ida?.destino || "—"} (${fmtDT(p.afastamento?.ida?.data_hora)})`,
-    `• Retorno: ${p.afastamento?.retorno?.origem || "—"} → ${p.afastamento?.retorno?.destino || "—"} (${fmtDT(p.afastamento?.retorno?.data_hora)})`,
+    "• Ida:",
+    ...fmtSegs(p.afastamento?.ida).map(l => `  ${l}`),
+    "• Retorno:",
+    ...fmtSegs(p.afastamento?.retorno).map(l => `  ${l}`),
     "",
     "Atividades:",
     `• ${p.atividades_desenvolvidas || "—"}`,
@@ -781,6 +997,57 @@ function parseDateBRToISO(value){
   const iso = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
   return iso ? `${iso[1]}-${iso[2]}-${iso[3]}` : "";
 }
+function splitLocal(value){
+  let s = (value || "").trim();
+  s = s.replace(/^local\s+de\s+(origem|destino)\s*:\s*/i, "").trim();
+  const cut = s.match(/^(.*?)\s+local\s+de\s+destino\s*:/i);
+  if(cut) s = cut[1].trim();
+  let m = s.match(/^(.*)\/\s*([A-Za-z]{2})\s*$/);
+  if(m) return { cidade: m[1].trim().replace(/[,\s]+$/,""), uf: m[2].toUpperCase() };
+  m = s.match(/([A-Za-zÀ-ÿ0-9 .´’'-]+?)\s*\/\s*([A-Za-z]{2})/);
+  if(m) return { cidade: m[1].trim().replace(/[,\s]+$/,""), uf: m[2].toUpperCase() };
+  m = s.match(/^(.*?)[-]\s*([A-Za-z]{2})\s*$/);
+  if(m) return { cidade: m[1].trim().replace(/[,\s]+$/,""), uf: m[2].toUpperCase() };
+  return { cidade: s, uf: "" };
+}
+function composeLocal(cidade, uf){
+  const c = (cidade || "").trim();
+  const u = (uf || "").trim().toUpperCase();
+  if(!c && !u) return "";
+  return u ? `${c}/${u}` : c;
+}
+function setLocalFields(prefix, combined, force = false){
+  const { cidade, uf } = splitLocal(combined);
+  const cEl = document.querySelector(`[name="${prefix}_cidade"]`);
+  const uEl = document.querySelector(`[name="${prefix}_uf"]`);
+  if(cEl && (force || !cEl.value)) cEl.value = cidade;
+  if(uEl && (force || !uEl.value)) uEl.value = uf;
+  const hidden = document.querySelector(`[name="${prefix}"]`);
+  if(hidden) hidden.value = composeLocal(cidade, uf);
+}
+function normalizeLocalFromInputs(prefix){
+  const cEl = document.querySelector(`[name="${prefix}_cidade"]`);
+  const uEl = document.querySelector(`[name="${prefix}_uf"]`);
+  if(!cEl || !uEl) return;
+  if(!uEl.value && cEl.value && cEl.value.includes("/")){
+    const { cidade, uf } = splitLocal(cEl.value);
+    cEl.value = cidade;
+    uEl.value = uf;
+  }
+  const hidden = document.querySelector(`[name="${prefix}"]`);
+  if(hidden) hidden.value = composeLocal(cEl.value, uEl.value);
+}
+function syncLocalInputs(prefix){
+  const cEl = document.querySelector(`[name="${prefix}_cidade"]`);
+  const uEl = document.querySelector(`[name="${prefix}_uf"]`);
+  const hidden = document.querySelector(`[name="${prefix}"]`);
+  const sync = () => {
+    if(hidden) hidden.value = composeLocal(cEl?.value, uEl?.value);
+  };
+  if(cEl) cEl.addEventListener("input", sync);
+  if(uEl) uEl.addEventListener("input", sync);
+  sync();
+}
 function maskDateInput(el){
   if(!el) return;
   el.addEventListener("input", (ev) => {
@@ -843,6 +1110,14 @@ function applyPayloadToFormByNameAnexo2(payload){
   if(!payload || typeof payload !== "object") return;
 
   const setField = (name, value) => {
+    if(name === "afastamento.ida.origem") { setLocalFields("afastamento.ida.origem", value, true); return; }
+    if(name === "afastamento.ida.destino") { setLocalFields("afastamento.ida.destino", value, true); return; }
+    if(name === "afastamento.retorno.origem") { setLocalFields("afastamento.retorno.origem", value, true); return; }
+    if(name === "afastamento.retorno.destino") { setLocalFields("afastamento.retorno.destino", value, true); return; }
+    if(name === "afastamento.ida.origem_cidade" && typeof value === "string" && value.includes("/")) { setLocalFields("afastamento.ida.origem", value, true); return; }
+    if(name === "afastamento.ida.destino_cidade" && typeof value === "string" && value.includes("/")) { setLocalFields("afastamento.ida.destino", value, true); return; }
+    if(name === "afastamento.retorno.origem_cidade" && typeof value === "string" && value.includes("/")) { setLocalFields("afastamento.retorno.origem", value, true); return; }
+    if(name === "afastamento.retorno.destino_cidade" && typeof value === "string" && value.includes("/")) { setLocalFields("afastamento.retorno.destino", value, true); return; }
     const el = document.querySelector(`[name="${name}"]`);
     if(!el) return;
 
@@ -861,6 +1136,7 @@ function applyPayloadToFormByNameAnexo2(payload){
     Object.entries(obj).forEach(([k,v]) => {
       const path = prefix ? `${prefix}.${k}` : k;
       if(v === null || v === undefined) return;
+      if(path === "afastamento" || path.startsWith("afastamento.")) return;
 
       if(Array.isArray(v)){
         setField(path, v.join(","));
@@ -1127,16 +1403,16 @@ function buildPayloadAnexo2FromChat(){
     data_relatorio: d.data_relatorio,
     proposto: d.proposto,
     afastamento: {
-      ida: {
+      ida: [{
         origem: d.afastamento.ida.origem,
         destino: d.afastamento.ida.destino,
         data_hora: d.afastamento.ida.data_hora ? (d.afastamento.ida.data_hora + ":00") : null
-      },
-      retorno: {
+      }],
+      retorno: [{
         origem: d.afastamento.retorno.origem,
         destino: d.afastamento.retorno.destino,
         data_hora: d.afastamento.retorno.data_hora ? (d.afastamento.retorno.data_hora + ":00") : null
-      }
+      }]
     },
     viagem_realizada: d.viagem_realizada,
     atividades_desenvolvidas: d.atividades_desenvolvidas,

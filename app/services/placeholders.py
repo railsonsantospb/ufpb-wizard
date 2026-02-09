@@ -117,13 +117,13 @@ def build_placeholders_anexo2(payload: Dict[str, Any], flags: Dict[str, Any]) ->
         "orgao_projetos": det if org_tipo == "projetos" else "",
         "orgao_outros": det if org_tipo == "outros" else "",
 
-        "ida_origem": afast["ida"]["origem"],
-        "ida_destino": afast["ida"]["destino"],
-        "ida_data_hora": _fmt_dt(afast["ida"]["data_hora"]),
+        "ida_origem": "\n".join((t.get("origem") or "") for t in _normalize_trechos(afast.get("ida"))),
+        "ida_destino": "\n".join((t.get("destino") or "") for t in _normalize_trechos(afast.get("ida"))),
+        "ida_data_hora": "\n".join(_fmt_dt_opt(t.get("data_hora")) for t in _normalize_trechos(afast.get("ida"))),
 
-        "retorno_origem": afast["retorno"]["origem"],
-        "retorno_destino": afast["retorno"]["destino"],
-        "retorno_data_hora": _fmt_dt(afast["retorno"]["data_hora"]),
+        "retorno_origem": "\n".join((t.get("origem") or "") for t in _normalize_trechos(afast.get("retorno"))),
+        "retorno_destino": "\n".join((t.get("destino") or "") for t in _normalize_trechos(afast.get("retorno"))),
+        "retorno_data_hora": "\n".join(_fmt_dt_opt(t.get("data_hora")) for t in _normalize_trechos(afast.get("retorno"))),
 
         "atividades_desenvolvidas": payload["atividades_desenvolvidas"],
 

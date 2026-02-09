@@ -168,6 +168,13 @@ function applyPayloadToFormByName(payload) {
       "servidor.dados_bancarios.agencia": "Use apenas números (máx. 10 dígitos).",
       "servidor.dados_bancarios.conta": "Use apenas números (máx. 20 dígitos)."
     };
+
+    function splitLocal(value) {
+      const s = (value || "").trim();
+      const m = s.match(/^(.*?)[/\\-]\\s*([A-Za-z]{2})$/);
+      if (m) return { cidade: m[1].trim(), uf: m[2].toUpperCase() };
+      return { cidade: s, uf: "" };
+    }
     const getFieldLabel = (el) => {
       const key = el.name || el.id || "";
       if (el.dataset && el.dataset.label) return el.dataset.label;
@@ -200,7 +207,15 @@ function applyPayloadToFormByName(payload) {
         if (title) title.textContent = `Trecho ${i}`;
         card.querySelectorAll("input[data-field]").forEach(input => {
           const field = input.dataset.field || "";
-          const labelBase = field === "data_hora" ? "Data e hora" : (field === "origem" ? "Origem" : "Destino");
+          const labelBase = (
+            field === "data_hora" ? "Data e hora"
+            : field === "origem_cidade" ? "Cidade de origem"
+            : field === "origem_uf" ? "UF de origem"
+            : field === "destino_cidade" ? "Cidade de destino"
+            : field === "destino_uf" ? "UF de destino"
+            : field === "origem" ? "Origem"
+            : "Destino"
+          );
           const typeLabel = type === "ida" ? "ida" : "retorno";
           input.dataset.label = `${labelBase} (${typeLabel} • trecho ${i})`;
         });
@@ -212,6 +227,8 @@ function applyPayloadToFormByName(payload) {
     function addTrechoSegment(type, values = {}) {
       const container = getTrechoContainer(type);
       if (!container) return;
+      const origemSplit = splitLocal(values.origem);
+      const destinoSplit = splitLocal(values.destino);
       const card = document.createElement("div");
       card.setAttribute("data-trecho-card", "1");
       card.style.padding = "10px 12px";
@@ -247,7 +264,7 @@ function applyPayloadToFormByName(payload) {
       const grid = document.createElement("div");
       grid.className = "grid2";
 
-      const addField = (label, field, placeholder, inputType = "text", spanFull = false) => {
+      const addField = (label, field, placeholder, inputType = "text", spanFull = false, attrs = {}) => {
         const wrap = document.createElement("div");
         if (spanFull) wrap.style.gridColumn = "1/-1";
         const lab = document.createElement("label");
@@ -264,14 +281,33 @@ function applyPayloadToFormByName(payload) {
         } else if (val !== undefined && val !== null) {
           input.value = val;
         }
+        if (attrs && typeof attrs === "object") {
+          Object.entries(attrs).forEach(([k, v]) => {
+            if (v === null || v === undefined) return;
+            if (k === "className") input.className = v;
+            else if (k === "dataset") Object.entries(v).forEach(([dk, dv]) => input.dataset[dk] = dv);
+            else input.setAttribute(k, v);
+          });
+        }
         wrap.appendChild(lab);
         wrap.appendChild(input);
         grid.appendChild(wrap);
       };
 
-      addField("Origem", "origem", "Ex.: João Pessoa/PB");
-      addField("Destino", "destino", "Ex.: Recife/PE");
+      addField("Cidade (origem)", "origem_cidade", "Ex.: João Pessoa");
+      addField("UF (origem)", "origem_uf", "Ex.: PB", "text", false, { pattern: "[A-Za-z]{2}", maxlength: "2" });
+      addField("Cidade (destino)", "destino_cidade", "Ex.: Recife");
+      addField("UF (destino)", "destino_uf", "Ex.: PE", "text", false, { pattern: "[A-Za-z]{2}", maxlength: "2" });
       addField("Data e hora", "data_hora", "dd/mm/aaaa hh:mm", "datetime-local", true);
+
+      const setIfEmpty = (field, value) => {
+        const el = grid.querySelector(`input[data-field="${field}"]`);
+        if (el && !el.value) el.value = value || "";
+      };
+      setIfEmpty("origem_cidade", origemSplit.cidade);
+      setIfEmpty("origem_uf", origemSplit.uf);
+      setIfEmpty("destino_cidade", destinoSplit.cidade);
+      setIfEmpty("destino_uf", destinoSplit.uf);
 
       card.appendChild(grid);
       container.appendChild(card);
@@ -297,10 +333,21 @@ function applyPayloadToFormByName(payload) {
       const cards = Array.from(container.querySelectorAll("[data-trecho-card]"));
       return cards.map(card => {
         const values = { origem: "", destino: "", data_hora: "" };
+        let origemCidade = "";
+        let origemUf = "";
+        let destinoCidade = "";
+        let destinoUf = "";
         card.querySelectorAll("input[data-field]").forEach(input => {
           const field = input.dataset.field;
-          values[field] = (input.value || "").trim();
+          const val = (input.value || "").trim();
+          if (field === "origem_cidade") origemCidade = val;
+          else if (field === "origem_uf") origemUf = val.toUpperCase();
+          else if (field === "destino_cidade") destinoCidade = val;
+          else if (field === "destino_uf") destinoUf = val.toUpperCase();
+          else values[field] = val;
         });
+        values.origem = origemCidade ? (origemUf ? `${origemCidade}/${origemUf}` : origemCidade) : "";
+        values.destino = destinoCidade ? (destinoUf ? `${destinoCidade}/${destinoUf}` : destinoCidade) : "";
         return values;
       });
     }

@@ -151,36 +151,12 @@
         <h2>3) Identificação do afastamento</h2>
 
         <h3>Ida</h3>
-        <div class="grid2">
-          <div>
-            <label>Origem</label>
-            <input name="afastamento.ida.origem" required placeholder="Ex.: João Pessoa/PB">
-          </div>
-          <div>
-            <label>Destino</label>
-            <input name="afastamento.ida.destino" required placeholder="Ex.: Recife/PE">
-          </div>
-          <div style="grid-column:1/-1;">
-            <label>Data e hora da ida</label>
-            <input name="afastamento.ida.data_hora" type="datetime-local" required placeholder="dd/mm/aaaa hh:mm">
-          </div>
-        </div>
+        <div id="idaSegments2" class="segment-list"></div>
+        <button type="button" class="btn btn-ghost btn-compact" id="addIdaSegment2">+ Adicionar trecho de ida</button>
 
         <h3>Retorno</h3>
-        <div class="grid2">
-          <div>
-            <label>Origem</label>
-            <input name="afastamento.retorno.origem" required placeholder="Ex.: Recife/PE">
-          </div>
-          <div>
-            <label>Destino</label>
-            <input name="afastamento.retorno.destino" required placeholder="Ex.: João Pessoa/PB">
-          </div>
-          <div style="grid-column:1/-1;">
-            <label>Data e hora do retorno</label>
-            <input name="afastamento.retorno.data_hora" type="datetime-local" required placeholder="dd/mm/aaaa hh:mm">
-          </div>
-        </div>
+        <div id="retornoSegments2" class="segment-list"></div>
+        <button type="button" class="btn btn-ghost btn-compact" id="addRetornoSegment2">+ Adicionar trecho de retorno</button>
       </section>
 
       <!-- STEP 4: Atividades -->
@@ -294,10 +270,14 @@
       </div>
 
       <div id="chatFullTimeline2"
-        style="height:62vh; overflow:auto; padding:14px 16px; background:rgba(255,255,255,0.02);"></div>
+        style="height:56vh; overflow:auto; padding:14px 16px; background:rgba(255,255,255,0.02);"></div>
 
       <div style="padding:12px 16px; border-top:1px solid rgba(255,255,255,0.08);">
         <div id="chatFullQuick2" class="row" style="flex-wrap:wrap; gap:8px;"></div>
+
+        <div class="helper" style="margin-top:8px;">
+          Os dados ficam no navegador e só vão ao servidor quando você pedir para gerar o arquivo.
+        </div>
 
         <div id="chatFullTextRow2" class="row" style="margin-top:10px; display:none;">
           <input id="chatFullText2" type="text" placeholder="Digite aqui..." style="flex:1;">
@@ -313,10 +293,6 @@
         <div id="chatFullDTrow2" class="row" style="margin-top:10px; display:none;">
           <input id="chatFullDT2" type="datetime-local">
           <button type="button" class="btn btn-primary" id="chatFullDTok2">OK</button>
-        </div>
-
-        <div class="helper" style="margin-top:8px;">
-          Os dados ficam no navegador e só vão ao servidor quando você pedir para gerar o arquivo.
         </div>
       </div>
     </div>

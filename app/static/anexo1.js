@@ -2488,7 +2488,7 @@ Depois disso, você pode revisar os campos no formulário e gerar o DOC/PDF.`;
         <div>${input("g_mi", "Início da missão", "datetime-local", a.missao_ini)}</div>
         <div>${input("g_mf", "Término da missão", "datetime-local", a.missao_fim)}</div>
       </div>
-      <div class="helper">Regras: término ≥ início; início ≥ ida; término ≤ retorno.</div>
+      <div class="helper">Regras: término maior ou igual ao início; início maior ou igual à ida; término menor ou igual ao retorno.</div>
       <button type="button" class="btn" id="g_auto_missao">Sugerir automaticamente (ida+2h / retorno-2h)</button>
     `;
         // Hook botão auto

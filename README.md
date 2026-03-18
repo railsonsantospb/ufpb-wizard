@@ -1,4 +1,4 @@
-# 🎯 UFPB Diárias Wizard
+# 🎯 UFPB FORMS ON
 
 Uma ferramenta online inteligente e fácil de usar que guia o preenchimento dos formulários de diárias da UFPB. O sistema verifica automaticamente todas as informações, avisa sobre prazos e requisitos obrigatórios e gera documentos prontos em **DOCX** ou **PDF** com um único clique.
 

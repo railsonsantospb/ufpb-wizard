@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Literal, Optional
 from tempfile import NamedTemporaryFile
@@ -10,6 +10,7 @@ from tempfile import NamedTemporaryFile
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.background import BackgroundTask
 
 from app.settings import settings
 from app.services.anexo1_import import (
@@ -32,8 +33,25 @@ WEB_DIR = Path("app/web")
 def _load_html(name: str) -> str:
     return (WEB_DIR / name).read_text(encoding="utf-8")
 
+def _cleanup_old_data_files(days: int = 15) -> None:
+    cutoff = datetime.now(timezone.utc).timestamp() - (days * 86400)
+    if not settings.data_dir.exists():
+        return
+
+    for fp in settings.data_dir.iterdir():
+        if not fp.is_file():
+            continue
+        try:
+            modified = fp.stat().st_mtime
+        except OSError:
+            continue
+        if modified < cutoff:
+            fp.unlink(missing_ok=True)
+
+
 def _ensure_data_dir() -> None:
     settings.data_dir.mkdir(parents=True, exist_ok=True)
+    _cleanup_old_data_files(15)
 
 def _save_draft(draft_id: str, payload: dict) -> None:
     _ensure_data_dir()
@@ -165,14 +183,29 @@ def generate_anexo1(payload: dict, format: Literal["docx", "pdf"] = Query("docx"
     if not template.exists():
         raise HTTPException(500, "Template anexo1_template.docx não encontrado em app/templates.")
 
-    out_docx = settings.data_dir / f"anexo1_{uuid.uuid4()}.docx"
+    with NamedTemporaryFile(delete=False, suffix=".docx") as tmp_docx:
+        out_docx = Path(tmp_docx.name)
+
     render_docx_from_template(template, out_docx, enriched["placeholders"], rows=enriched.get("rows"))
 
+    def cleanup(files: list[Path]):
+        for f in files:
+            f.unlink(missing_ok=True)
+
     if format == "docx":
-        return FileResponse(out_docx, filename="anexo1_preenchido.docx")
+        return FileResponse(
+            out_docx,
+            filename="anexo1_preenchido.docx",
+            background=BackgroundTask(cleanup, [out_docx]),
+        )
 
     out_pdf = convert_docx_to_pdf(out_docx)
-    return FileResponse(out_pdf, filename="anexo1_preenchido.pdf")
+
+    return FileResponse(
+        out_pdf,
+        filename="anexo1_preenchido.pdf",
+        background=BackgroundTask(cleanup, [out_docx, out_pdf]),
+    )
 
 
 @app.post("/api/anexo2/generate")
@@ -187,14 +220,29 @@ def generate_anexo2(payload: dict, format: Literal["docx", "pdf"] = Query("docx"
     if not template.exists():
         raise HTTPException(500, "Template anexo2_template.docx não encontrado em app/templates.")
 
-    out_docx = settings.data_dir / f"anexo2_{uuid.uuid4()}.docx"
+    with NamedTemporaryFile(delete=False, suffix=".docx") as tmp_docx:
+        out_docx = Path(tmp_docx.name)
+
     render_docx_from_template(template, out_docx, enriched["placeholders"], rows=enriched.get("rows"))
 
+    def cleanup(files: list[Path]):
+        for f in files:
+            f.unlink(missing_ok=True)
+
     if format == "docx":
-        return FileResponse(out_docx, filename="anexo2_preenchido.docx")
+        return FileResponse(
+            out_docx,
+            filename="anexo2_preenchido.docx",
+            background=BackgroundTask(cleanup, [out_docx]),
+        )
 
     out_pdf = convert_docx_to_pdf(out_docx)
-    return FileResponse(out_pdf, filename="anexo2_preenchido.pdf")
+
+    return FileResponse(
+        out_pdf,
+        filename="anexo2_preenchido.pdf",
+        background=BackgroundTask(cleanup, [out_docx, out_pdf]),
+    )
 
 @app.get("/review", response_class=HTMLResponse)
 def review_page():

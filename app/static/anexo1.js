@@ -509,7 +509,16 @@ function applyPayloadToFormByName(payload) {
 
       elBar.style.width = `${Math.round((current - 1) / (total - 1) * 100)}%`;
 
-      document.getElementById("btnBack").disabled = current === 1;
+      const importCard = document.getElementById("importAnexo1CardSelf");
+      if (importCard) {
+        importCard.style.display = (current === 1) ? "block" : "none";
+      }
+
+      const btnBack = document.getElementById("btnBack");
+      if (btnBack) {
+        btnBack.style.display = "inline-flex";
+        btnBack.disabled = current === 1;
+      }
       const btnNext = document.getElementById("btnNext");
       if (btnNext) {
         btnNext.textContent = "Avançar";
@@ -519,6 +528,7 @@ function applyPayloadToFormByName(payload) {
       showErrors(null);
 
       // hooks per step
+      if (current === 6) fillMotivoFromDates();
       if (current === 8) refreshAutoFlags();
       if (current === 9) renderReview();
     }
@@ -624,7 +634,7 @@ function applyPayloadToFormByName(payload) {
       }
 
       // step-specific cross-field validations (before leaving)
-      if (ok && stepNumber === 5) {
+      if (ok && stepNumber === 4) {
         const { ida, ret } = getTrechoBoundaryDatesFromForm();
         if (ida && ret && ret < ida) {
           ok = false;
@@ -632,7 +642,7 @@ function applyPayloadToFormByName(payload) {
         }
       }
 
-      if (ok && stepNumber === 6) {
+      if (ok && stepNumber === 5) {
         const { ida, ret } = getTrechoBoundaryDatesFromForm();
         const mi = dtValue("missao.inicio_data_hora");
         const mt = dtValue("missao.termino_data_hora");
@@ -659,7 +669,7 @@ function applyPayloadToFormByName(payload) {
           const termo = form.querySelector("#termoCiente");
           if (!termo.checked) {
             ok = false;
-            msgs.push("Marque “Ciente do termo” para veículo próprio.");
+            msgs.push("Marque Ciente do termo para veículo próprio.");
           }
         }
 
@@ -718,8 +728,8 @@ function applyPayloadToFormByName(payload) {
         motivo_viagem: null,
 
         trechos: {
-          ida: { origem: null, destino: null, data_hora: null },
-          retorno: { origem: null, destino: null, data_hora: null }
+          ida: [],
+          retorno: []
         },
 
         missao: { inicio_data_hora: null, termino_data_hora: null },
@@ -739,7 +749,13 @@ function applyPayloadToFormByName(payload) {
         },
 
         // controles internos do chat
-        _manual_feriado_dia_anterior: false
+        _manual_feriado_dia_anterior: false,
+        _chat_ida_origem_cidade: null,
+        _chat_ida_destino_cidade: null,
+        _chat_ret_origem_cidade: null,
+        _chat_ret_destino_cidade: null,
+        _chat_trecho_type: "ida",
+        _chat_trecho_idx: 0
       }
     };
 
@@ -960,7 +976,8 @@ function applyPayloadToFormByName(payload) {
 
     function computeFlags() {
       const d = chatFull.data;
-      const idaDT = d.trechos.ida.data_hora; // datetime-local
+      const primeiraIda = d.trechos.ida[0];
+      const idaDT = primeiraIda ? primeiraIda.data_hora : null;
       const sol = d.data_solicitacao;
 
       // envolve_fds: pelo menos fim de semana OU manual marcado
@@ -977,7 +994,7 @@ function applyPayloadToFormByName(payload) {
         const idaDate = idaDT.split("T")[0];
         const delta = daysDiff(sol, idaDate); // ida - solic
         const limite = (d.tipo_solicitacao === "diarias") ? 10 : 30;
-        d.flags.fora_do_prazo = delta < limite; // ida muito próxima => fora do prazo
+        d.flags.fora_do_prazo = delta < limite; // ida muito proxima => fora do prazo
       } else {
         d.flags.fora_do_prazo = false;
       }
@@ -1046,16 +1063,18 @@ function applyPayloadToFormByName(payload) {
 
     function validateTimeline() {
       const d = chatFull.data;
-      const ida = d.trechos.ida.data_hora ? new Date(d.trechos.ida.data_hora) : null;
-      const ret = d.trechos.retorno.data_hora ? new Date(d.trechos.retorno.data_hora) : null;
+      const primeiraIda = d.trechos.ida[0];
+      const ultimoRetorno = d.trechos.retorno[d.trechos.retorno.length - 1];
+      const ida = primeiraIda && primeiraIda.data_hora ? new Date(primeiraIda.data_hora) : null;
+      const ret = ultimoRetorno && ultimoRetorno.data_hora ? new Date(ultimoRetorno.data_hora) : null;
       const mi = d.missao.inicio_data_hora ? new Date(d.missao.inicio_data_hora) : null;
       const mf = d.missao.termino_data_hora ? new Date(d.missao.termino_data_hora) : null;
 
       const errs = [];
-      if (ida && ret && ret < ida) errs.push("O retorno não pode ser antes da ida.");
-      if (mi && mf && mf < mi) errs.push("O término da missão não pode ser antes do início.");
-      if (ida && mi && mi < ida) errs.push("O início da missão não pode ser antes da ida.");
-      if (ret && mf && mf > ret) errs.push("O término da missão não pode ser depois do retorno.");
+      if (ida && ret && ret < ida) errs.push("O retorno nao pode ser antes da ida.");
+      if (mi && mf && mf < mi) errs.push("O termino da missao nao pode ser antes do inicio.");
+      if (ida && mi && mi < ida) errs.push("O inicio da missao nao pode ser antes da ida.");
+      if (ret && mf && mf > ret) errs.push("O termino da missao nao pode ser depois do retorno.");
       return errs;
     }
 
@@ -1071,7 +1090,7 @@ function applyPayloadToFormByName(payload) {
 
       if (s === "start") {
         askQuick(
-          "Olá. Vou te ajudar a preencher a requisição completa, incluindo dados do servidor, e vou corrigir inconsistências automaticamente.\nVamos começar: qual é o tipo de solicitação?",
+          "Olá. Vou te ajudar a preencher seus dados pessoais e bancários. Após isso, você preenchera os trechos de ida e retorno, missão e demais detalhes diretamente no formulário.\nVamos começar: qual e o tipo de solicitaçao?",
           [
             { label: "Diárias", primary: true, onClick: () => reply("tipo_solicitacao", "diarias") },
             { label: "Passagens", onClick: () => reply("tipo_solicitacao", "passagens") },
@@ -1110,49 +1129,144 @@ function applyPayloadToFormByName(payload) {
       if (s === "servidor.agencia") { askText("Agência (somente números)."); return; }
       if (s === "servidor.conta") { askText("Conta (somente números)."); return; }
 
-      // Viagem e missão
-      if (s === "trechos.ida.origem") { askText("Origem da ida (cidade/UF)."); return; }
-      if (s === "trechos.ida.destino") { askText("Destino da ida (cidade/UF)."); return; }
-      if (s === "trechos.ida.data_hora") { askDT("Data e hora da ida."); return; }
+      // Trechos, missao e outros campos serão preenchidos diretamente no formulário
+      // (removido fluxo do assistente para esses campos)
+      //       if (s === "trechos.ida.origem") {
+      //         const idx = d._chat_trecho_idx;
+      //         const num = idx + 1;
+      //         askText(idx === 0 ? "Cidade de origem da ida (ex.: Joao Pessoa)." : `Trecho de ida ${num} - cidade de origem.`);
+      //         return;
+      //       }
+      //       if (s === "trechos.ida.origem_uf") { askText("Estado (UF) de origem (sigla, ex.: PB)."); return; }
+      //       if (s === "trechos.ida.destino") {
+      //         const idx = d._chat_trecho_idx;
+      //         const num = idx + 1;
+      //         askText(idx === 0 ? "Cidade de destino da ida (ex.: Recife)." : `Trecho de ida ${num} - cidade de destino.`);
+      //         return;
+      //       }
+      //       if (s === "trechos.ida.destino_uf") { askText("Estado (UF) de destino (sigla, ex.: PE)."); return; }
+      //       if (s === "trechos.ida.data_hora") {
+      //         const idx = d._chat_trecho_idx;
+      //         askDT(idx === 0 ? "Data e hora da ida." : `Trecho de ida ${idx + 1} - data e hora.`);
+      //         return;
+      //       }
+      //       if (s === "trechos.ida.mais") {
+      //         const atual = d.trechos.ida;
+      //         const ultimo = atual[atual.length - 1];
+      //         const resumo = ultimo ? ("Trecho " + atual.length + ": " + ultimo.origem + " > " + ultimo.destino) : "";
+      //         askQuick(
+      //           (resumo ? resumo + "\n" : "") + "Deseja adicionar mais um trecho de ida?",
+      //           [
+      //             { label: "Sim, mais um trecho", onClick: () => {
+      //               d._chat_trecho_idx = d.trechos.ida.length;
+      //               d._chat_trecho_type = "ida";
+      //               chatFull.state = "trechos.ida.origem"; ask();
+      //             }},
+      //             { label: "Nao, seguir para retorno", primary: true, onClick: () => {
+      //               d._chat_trecho_idx = 0;
+      //               d._chat_trecho_type = "retorno";
+      //               chatFull.state = "trechos.retorno.origem"; ask();
+      //             }},
+      //           ]
+      //         );
+      //         return;
+      //       }
 
-      if (s === "trechos.retorno.origem") {
-        askQuick(
-          "Origem do retorno. Normalmente é o destino da ida. Confirmar?",
-          [
-            {
-              label: `Usar “${d.trechos.ida.destino || "destino da ida"}”`, primary: true, onClick: () => {
-                if (d.trechos.ida.destino) { reply("trechos.retorno.origem", d.trechos.ida.destino); }
-                else { chatFull.state = "trechos.retorno.origem_text"; ask(); }
-              }
-            },
-            { label: "Informar manualmente", onClick: () => { chatFull.state = "trechos.retorno.origem_text"; ask(); } },
-          ]
-        );
-        return;
-      }
-      if (s === "trechos.retorno.origem_text") { askText("Digite a origem do retorno (cidade/UF)."); return; }
+      //       if (s === "trechos.retorno.origem") {
+      //         const idaList = d.trechos.ida;
+      //         const ultimaIda = idaList[idaList.length - 1];
+      //         const destinoIda = ultimaIda ? ultimaIda.destino : null;
+      //         const idx = d._chat_trecho_idx || 0;
+      //         if (idx === 0 && destinoIda) {
+      //           askQuick(
+      //             "Origem do retorno. Normalmente e o destino da ultima ida. Confirmar?",
+      //             [
+      //               {
+      //                 label: "Usar \"" + destinoIda + "\"", primary: true, onClick: () => {
+      //                   const retIdx = d._chat_trecho_idx || 0;
+      //                   if (!d.trechos.retorno[retIdx]) d.trechos.retorno[retIdx] = { origem: null, destino: null, data_hora: null };
+      //                   d.trechos.retorno[retIdx].origem = destinoIda;
+      //                   addBubble("user", destinoIda);
+      //                   chatFull.state = "trechos.retorno.destino"; ask();
+      //                 }
+      //               },
+      //               { label: "Informar manualmente", onClick: () => { chatFull.state = "trechos.retorno.origem_text"; ask(); } },
+      //             ]
+      //           );
+      //         } else {
+      //           const num = idx + 1;
+      //           askText(idx === 0 ? "Cidade de origem do retorno." : "Trecho de retorno " + num + " - cidade de origem.");
+      //         }
+      //         return;
+      //       }
+      //       if (s === "trechos.retorno.origem_text") {
+      //         const idx = d._chat_trecho_idx || 0;
+      //         askText(idx === 0 ? "Cidade de origem do retorno (ex.: Recife)." : `Trecho de retorno ${idx + 1} - cidade de origem.`);
+      //         return;
+      //       }
+      //       if (s === "trechos.retorno.origem_uf") { askText("Estado (UF) de origem do retorno (sigla, ex.: PE)."); return; }
 
-      if (s === "trechos.retorno.destino") {
-        askQuick(
-          "Destino do retorno. Normalmente é a origem da ida. Confirmar?",
-          [
-            {
-              label: `Usar “${d.trechos.ida.origem || "origem da ida"}”`, primary: true, onClick: () => {
-                if (d.trechos.ida.origem) { reply("trechos.retorno.destino", d.trechos.ida.origem); }
-                else { chatFull.state = "trechos.retorno.destino_text"; ask(); }
-              }
-            },
-            { label: "Informar manualmente", onClick: () => { chatFull.state = "trechos.retorno.destino_text"; ask(); } },
-          ]
-        );
-        return;
-      }
-      if (s === "trechos.retorno.destino_text") { askText("Digite o destino do retorno (cidade/UF)."); return; }
+      //       if (s === "trechos.retorno.destino") {
+      //         const idaList = d.trechos.ida;
+      //         const primeiraIda = idaList[0];
+      //         const origemIda = primeiraIda ? primeiraIda.origem : null;
+      //         const idx = d._chat_trecho_idx || 0;
+      //         const retList = d.trechos.retorno;
+      //         const ultimoRetorno = retList[retList.length - 1];
+      //         const origemUltimoRetorno = ultimoRetorno ? ultimoRetorno.origem : null;
+      //         const sugestao = origemUltimoRetorno || origemIda;
+      //         if (sugestao) {
+      //           askQuick(
+      //             "Destino do retorno. Normalmente e a origem da ida. Confirmar?",
+      //             [
+      //               {
+      //                 label: "Usar \"" + sugestao + "\"", primary: true, onClick: () => {
+      //                   const retIdx = d._chat_trecho_idx || 0;
+      //                   if (!d.trechos.retorno[retIdx]) d.trechos.retorno[retIdx] = { origem: null, destino: null, data_hora: null };
+      //                   d.trechos.retorno[retIdx].destino = sugestao;
+      //                   addBubble("user", sugestao);
+      //                   chatFull.state = "trechos.retorno.data_hora"; ask();
+      //                 }
+      //               },
+      //               { label: "Informar manualmente", onClick: () => { chatFull.state = "trechos.retorno.destino_text"; ask(); } },
+      //             ]
+      //           );
+      //         } else {
+      //           askText("Cidade de destino do retorno" + (idx > 0 ? " (trecho " + (idx + 1) + ")" : "") + ".");
+      //         }
+      //         return;
+      //       }
+      //       if (s === "trechos.retorno.destino_text") {
+      //         const idx = d._chat_trecho_idx || 0;
+      //         const msgDest = idx === 0 ? "Cidade de destino do retorno (ex.: Joao Pessoa)." : "Trecho de retorno " + (idx + 1) + " - cidade de destino.";
+      //         askText(msgDest);
+      //         return;
+      //       }
+      //       if (s === "trechos.retorno.destino_uf") { askText("Estado (UF) de destino do retorno (sigla, ex.: PB)."); return; }
+      //       if (s === "trechos.retorno.mais") {
+      //         const atual = d.trechos.retorno;
+      //         const ultimo = atual[atual.length - 1];
+      //         const resumo = ultimo ? ("Trecho " + atual.length + ": " + ultimo.origem + " > " + ultimo.destino) : "";
+      //         askQuick(
+      //           (resumo ? resumo + "\n" : "") + "Deseja adicionar mais um trecho de retorno?",
+      //           [
+      //             { label: "Sim, mais um trecho", onClick: () => {
+      //               d._chat_trecho_idx = d.trechos.retorno.length;
+      //               d._chat_trecho_type = "retorno";
+      //               chatFull.state = "trechos.retorno.origem_text"; ask();
+      //             }},
+      //             { label: "Nao, continuar", primary: true, onClick: () => {
+      //               chatFull.state = "missao.inicio_data_hora"; ask();
+      //             }},
+      //           ]
+      //         );
+      //         return;
+      //       }
 
-      if (s === "trechos.retorno.data_hora") { askDT("Data e hora do retorno."); return; }
+      //       if (s === "trechos.retorno.data_hora") { askDT("Data e hora do retorno."); return; }
 
-      if (s === "missao.inicio_data_hora") { askDT("Início da missão (data e hora)."); return; }
-      if (s === "missao.termino_data_hora") { askDT("Término da missão (data e hora)."); return; }
+      //       if (s === "missao.inicio_data_hora") { askDT("Início da missão (data e hora)."); return; }
+      //       if (s === "missao.termino_data_hora") { askDT("Término da missão (data e hora)."); return; }
 
       // Motivo (texto — aqui pode ser menu opcional + texto final)
       if (s === "motivo_viagem") {
@@ -1208,7 +1322,7 @@ function applyPayloadToFormByName(payload) {
         });
 
         askQuick(
-          "Transporte: você pode marcar mais de uma opção. Quando terminar, clique em “Continuar”.",
+          "Transporte: voce pode marcar mais de uma opcao. Quando terminar, clique em Continuar.",
           [
             mk("Veículo oficial", "veiculo_oficial"),
             mk("Empresa terrestre", "empresa_terrestre"),
@@ -1315,26 +1429,24 @@ function applyPayloadToFormByName(payload) {
         const fmtDate = (v) => formatDateBR(v) || "—";
         const fmtDT = (v) => formatDateTimeBR(v) || "—";
 
-        const resumo =
-          `Resumo para aplicar no formulário:
-• Tipo: ${d.tipo_solicitacao}
-• Data solicitação: ${fmtDate(d.data_solicitacao)}
-
-• Servidor: ${d.servidor.nome_completo} | ${d.servidor.cargo_funcao}
-• CPF: ${d.servidor.cpf ? (d.servidor.cpf.slice(0, 3) + "***" + d.servidor.cpf.slice(-2)) : "—"} | SIAPE: ${d.servidor.siape}
-
-• Ida: ${d.trechos.ida.origem} → ${d.trechos.ida.destino} | ${fmtDT(d.trechos.ida.data_hora)}
-• Retorno: ${d.trechos.retorno.origem} → ${d.trechos.retorno.destino} | ${fmtDT(d.trechos.retorno.data_hora)}
-
-• Missão: ${fmtDT(d.missao.inicio_data_hora)} até ${fmtDT(d.missao.termino_data_hora)}
-• Débito: ${d.debito_recurso.tipo}${d.debito_recurso.detalhe ? " (" + d.debito_recurso.detalhe + ")" : ""}
-• Transporte: ${d.transporte.meios.join(", ")}${d.transporte.meios.includes("veiculo_proprio") ? (" | termo: " + (d.transporte.termo_veiculo_proprio_ciente ? "ciente" : "NÃO")) : ""}
-
-• Flags:
-  - envolve_fds/feriado/dia anterior: ${f.envolve_fds_feriado_ou_dia_anterior ? "SIM" : "NÃO"}
-  - fora do prazo: ${f.fora_do_prazo ? "SIM" : "NÃO"}
-
-Depois disso, você pode revisar os campos no formulário e gerar o DOC/PDF.`;
+        const cpfMask = d.servidor.cpf ? (d.servidor.cpf.slice(0, 3) + "***" + d.servidor.cpf.slice(-2)) : "-";
+        const idaLinhas = d.trechos.ida.map((t, i) => "  Trecho " + (i + 1) + ": " + t.origem + " > " + t.destino + " | " + fmtDT(t.data_hora)).join("\n") || "  (nenhum)";
+        const retLinhas = d.trechos.retorno.map((t, i) => "  Trecho " + (i + 1) + ": " + t.origem + " > " + t.destino + " | " + fmtDT(t.data_hora)).join("\n") || "  (nenhum)";
+        const termoCiente = d.transporte.meios.includes("veiculo_proprio") ? (" | termo: " + (d.transporte.termo_veiculo_proprio_ciente ? "ciente" : "NAO")) : "";
+        const resumo = "Resumo para aplicar no formulario:\n" +
+          "Tipo: " + d.tipo_solicitacao + "\n" +
+          "Data solicitacao: " + fmtDate(d.data_solicitacao) + "\n\n" +
+          "Servidor: " + d.servidor.nome_completo + " | " + d.servidor.cargo_funcao + "\n" +
+          "CPF: " + cpfMask + " | SIAPE: " + d.servidor.siape + "\n\n" +
+          "Ida:\n" + idaLinhas + "\n" +
+          "Retorno:\n" + retLinhas + "\n\n" +
+          "Missao: " + fmtDT(d.missao.inicio_data_hora) + " ate " + fmtDT(d.missao.termino_data_hora) + "\n" +
+          "Debito: " + d.debito_recurso.tipo + (d.debito_recurso.detalhe ? " (" + d.debito_recurso.detalhe + ")" : "") + "\n" +
+          "Transporte: " + d.transporte.meios.join(", ") + termoCiente + "\n\n" +
+          "Flags:\n" +
+          "  - envolve fds/feriado/dia anterior: " + (f.envolve_fds_feriado_ou_dia_anterior ? "SIM" : "NAO") + "\n" +
+          "  - fora do prazo: " + (f.fora_do_prazo ? "SIM" : "NAO") + "\n\n" +
+          "Depois disso, voce pode revisar os campos no formulario e gerar o DOC/PDF.";
 
         askQuick(resumo, [
           {
@@ -1447,57 +1559,89 @@ Depois disso, você pode revisar os campos no formulário e gerar o DOC/PDF.`;
         const ct = onlyDigits(value);
         if (!isNumLen(ct, 1, 20)) return fail("Conta inválida (somente números).");
         setPath("servidor.dados_bancarios.conta", ct);
-        chatFull.state = "trechos.ida.origem"; ask(); return;
+        chatFull.state = "summary"; ask(); return;
       }
 
       // Datas (date/datetime) — tratadas nos handlers específicos abaixo
-      // Trechos e missão textos
+      // Trechos e missao textos
       if (chatFull.state === "trechos.ida.origem") {
-        if (!isMinMax(value, 2, 80)) return fail("Origem inválida.");
-        setPath("trechos.ida.origem", value.trim());
+        if (!isMinMax(value, 2, 80)) return fail("Cidade de origem invalida.");
+        d._chat_ida_origem_cidade = value.trim();
+        chatFull.state = "trechos.ida.origem_uf"; ask(); return;
+      }
+      if (chatFull.state === "trechos.ida.origem_uf") {
+        const uf = value.trim().toUpperCase();
+        if (!/^[A-Z]{2}$/.test(uf)) return fail("Informe a sigla do estado com 2 letras (ex.: PB).");
+        const cidade = d._chat_ida_origem_cidade || "";
+        const origem = cidade ? (cidade + "/" + uf) : uf;
+        const idx = d._chat_trecho_idx;
+        if (!d.trechos.ida[idx]) d.trechos.ida[idx] = { origem: null, destino: null, data_hora: null };
+        d.trechos.ida[idx].origem = origem;
         chatFull.state = "trechos.ida.destino"; ask(); return;
       }
       if (chatFull.state === "trechos.ida.destino") {
-        if (!isMinMax(value, 2, 80)) return fail("Destino inválido.");
-        setPath("trechos.ida.destino", value.trim());
+        if (!isMinMax(value, 2, 80)) return fail("Cidade de destino invalida.");
+        d._chat_ida_destino_cidade = value.trim();
+        chatFull.state = "trechos.ida.destino_uf"; ask(); return;
+      }
+      if (chatFull.state === "trechos.ida.destino_uf") {
+        const uf = value.trim().toUpperCase();
+        if (!/^[A-Z]{2}$/.test(uf)) return fail("Informe a sigla do estado com 2 letras (ex.: PE).");
+        const cidade = d._chat_ida_destino_cidade || "";
+        const destino = cidade ? (cidade + "/" + uf) : uf;
+        const idx = d._chat_trecho_idx;
+        if (!d.trechos.ida[idx]) d.trechos.ida[idx] = { origem: null, destino: null, data_hora: null };
+        d.trechos.ida[idx].destino = destino;
         chatFull.state = "trechos.ida.data_hora"; ask(); return;
       }
-      if (chatFull.state === "trechos.retorno.origem") {
-        if (!isMinMax(value, 2, 80)) return fail("Origem do retorno inválida.");
-        setPath("trechos.retorno.origem", value.trim());
+      if (chatFull.state === "trechos.retorno.origem" || chatFull.state === "trechos.retorno.origem_text") {
+        if (!isMinMax(value, 2, 80)) return fail("Cidade de origem do retorno invalida.");
+        d._chat_ret_origem_cidade = value.trim();
+        chatFull.state = "trechos.retorno.origem_uf"; ask(); return;
+      }
+      if (chatFull.state === "trechos.retorno.origem_uf") {
+        const uf = value.trim().toUpperCase();
+        if (!/^[A-Z]{2}$/.test(uf)) return fail("Informe a sigla do estado com 2 letras.");
+        const cidade = d._chat_ret_origem_cidade || "";
+        const origem = cidade ? (cidade + "/" + uf) : uf;
+        const idx = d._chat_trecho_idx || 0;
+        if (!d.trechos.retorno[idx]) d.trechos.retorno[idx] = { origem: null, destino: null, data_hora: null };
+        d.trechos.retorno[idx].origem = origem;
         chatFull.state = "trechos.retorno.destino"; ask(); return;
       }
-      if (chatFull.state === "trechos.retorno.origem_text") {
-        if (!isMinMax(value, 2, 80)) return fail("Origem do retorno inválida.");
-        setPath("trechos.retorno.origem", value.trim());
-        chatFull.state = "trechos.retorno.destino"; ask(); return;
+      if (chatFull.state === "trechos.retorno.destino" || chatFull.state === "trechos.retorno.destino_text") {
+        if (!isMinMax(value, 2, 80)) return fail("Cidade de destino do retorno invalida.");
+        d._chat_ret_destino_cidade = value.trim();
+        chatFull.state = "trechos.retorno.destino_uf"; ask(); return;
       }
-      if (chatFull.state === "trechos.retorno.destino") {
-        if (!isMinMax(value, 2, 80)) return fail("Destino do retorno inválido.");
-        setPath("trechos.retorno.destino", value.trim());
-        chatFull.state = "trechos.retorno.data_hora"; ask(); return;
-      }
-      if (chatFull.state === "trechos.retorno.destino_text") {
-        if (!isMinMax(value, 2, 80)) return fail("Destino do retorno inválido.");
-        setPath("trechos.retorno.destino", value.trim());
+      if (chatFull.state === "trechos.retorno.destino_uf") {
+        const uf = value.trim().toUpperCase();
+        if (!/^[A-Z]{2}$/.test(uf)) return fail("Informe a sigla do estado com 2 letras.");
+        const cidade = d._chat_ret_destino_cidade || "";
+        const destino = cidade ? (cidade + "/" + uf) : uf;
+        const idx = d._chat_trecho_idx || 0;
+        if (!d.trechos.retorno[idx]) d.trechos.retorno[idx] = { origem: null, destino: null, data_hora: null };
+        d.trechos.retorno[idx].destino = destino;
         chatFull.state = "trechos.retorno.data_hora"; ask(); return;
       }
 
       // Motivo
       if (chatFull.state === "motivo.objetivo_curto") {
         if (!isMinMax(value, 5, 200)) return fail("Objetivo muito curto. Escreva uma frase com pelo menos 5 caracteres.");
-        const idaCity = d.trechos.ida.destino || "destino";
-        const idaDate = d.trechos.ida.data_hora ? d.trechos.ida.data_hora.split("T")[0] : "—";
-        const retDate = d.trechos.retorno.data_hora ? d.trechos.retorno.data_hora.split("T")[0] : "—";
+        const primeiraIda = d.trechos.ida[0] || {};
+        const ultimoRet = d.trechos.retorno[d.trechos.retorno.length - 1] || {};
+        const idaCity = primeiraIda.destino || "destino";
+        const idaDate = primeiraIda.data_hora ? primeiraIda.data_hora.split("T")[0] : "-";
+        const retDate = ultimoRet.data_hora ? ultimoRet.data_hora.split("T")[0] : "-";
 
         const tipo = d._motivo_modelo;
-        let base = "Participação em atividade institucional";
-        if (tipo === "evento") base = "Participação em evento técnico/científico";
-        if (tipo === "capacitacao") base = "Participação em capacitação/treinamento";
-        if (tipo === "reuniao") base = "Participação em reunião técnica/institucional";
-        if (tipo === "visita") base = "Realização de visita técnica";
+        let base = "Participacao em atividade institucional";
+        if (tipo === "evento") base = "Participacao em evento tecnico/cientifico";
+        if (tipo === "capacitacao") base = "Participacao em capacitacao/treinamento";
+        if (tipo === "reuniao") base = "Participacao em reuniao tecnica/institucional";
+        if (tipo === "visita") base = "Realizacao de visita tecnica";
 
-        d.motivo_viagem = `${base} em ${idaCity}, no período de ${idaDate} a ${retDate}, com objetivo de ${value.trim()}.`;
+        d.motivo_viagem = base + " em " + idaCity + ", no periodo de " + idaDate + " a " + retDate + ", com objetivo de " + value.trim() + ".";
         chatFull.state = "debito_recurso.tipo"; ask(); return;
       }
 
@@ -1588,14 +1732,18 @@ Depois disso, você pode revisar os campos no formulário e gerar o DOC/PDF.`;
       const d = chatFull.data;
 
       if (chatFull.state === "trechos.ida.data_hora") {
-        d.trechos.ida.data_hora = v;
+        const idx = d._chat_trecho_idx;
+        if (!d.trechos.ida[idx]) d.trechos.ida[idx] = { origem: null, destino: null, data_hora: null };
+        d.trechos.ida[idx].data_hora = v;
         computeFlags();
-        chatFull.state = "trechos.retorno.origem";
+        chatFull.state = "trechos.ida.mais";
         ask();
         return;
       }
       if (chatFull.state === "trechos.retorno.data_hora") {
-        d.trechos.retorno.data_hora = v;
+        const idx = d._chat_trecho_idx || 0;
+        if (!d.trechos.retorno[idx]) d.trechos.retorno[idx] = { origem: null, destino: null, data_hora: null };
+        d.trechos.retorno[idx].data_hora = v;
 
         const errs = validateTimeline();
         if (errs.length) {
@@ -1606,7 +1754,7 @@ Depois disso, você pode revisar os campos no formulário e gerar o DOC/PDF.`;
         }
 
         computeFlags();
-        chatFull.state = "missao.inicio_data_hora";
+        chatFull.state = "trechos.retorno.mais";
         ask();
         return;
       }
@@ -1651,15 +1799,6 @@ Depois disso, você pode revisar os campos no formulário e gerar o DOC/PDF.`;
         || chatFull.state === "servidor.banco"
         || chatFull.state === "servidor.agencia"
         || chatFull.state === "servidor.conta"
-        || chatFull.state === "trechos.ida.origem"
-        || chatFull.state === "trechos.ida.destino"
-        || chatFull.state === "trechos.retorno.origem_text"
-        || chatFull.state === "trechos.retorno.destino_text"
-        || chatFull.state === "debito_recurso.detalhe"
-        || chatFull.state === "motivo.objetivo_curto"
-        || chatFull.state === "motivo.texto_livre"
-        || chatFull.state === "justificativas.fds"
-        || chatFull.state === "justificativas.prazo"
       ) {
         // Para "motivo.modelo", o texto não entra aqui; ele é quick
         reply(chatFull.state, v);
@@ -1708,16 +1847,16 @@ Depois disso, você pode revisar os campos no formulário e gerar o DOC/PDF.`;
         servidor: d.servidor,
         motivo_viagem: d.motivo_viagem,
         trechos: {
-          ida: {
-            origem: d.trechos.ida.origem,
-            destino: d.trechos.ida.destino,
-            data_hora: d.trechos.ida.data_hora ? (d.trechos.ida.data_hora + ":00") : null
-          },
-          retorno: {
-            origem: d.trechos.retorno.origem,
-            destino: d.trechos.retorno.destino,
-            data_hora: d.trechos.retorno.data_hora ? (d.trechos.retorno.data_hora + ":00") : null
-          }
+          ida: d.trechos.ida.map(t => ({
+            origem: t.origem,
+            destino: t.destino,
+            data_hora: t.data_hora ? (t.data_hora + ":00") : null
+          })),
+          retorno: d.trechos.retorno.map(t => ({
+            origem: t.origem,
+            destino: t.destino,
+            data_hora: t.data_hora ? (t.data_hora + ":00") : null
+          }))
         },
         missao: {
           inicio_data_hora: d.missao.inicio_data_hora ? (d.missao.inicio_data_hora + ":00") : null,
@@ -1861,16 +2000,16 @@ Depois disso, você pode revisar os campos no formulário e gerar o DOC/PDF.`;
         },
         motivo_viagem: d.motivo_viagem,
         trechos: {
-          ida: {
-            origem: d.trechos.ida.origem,
-            destino: d.trechos.ida.destino,
-            data_hora: d.trechos.ida.data_hora ? (d.trechos.ida.data_hora + ":00") : null
-          },
-          retorno: {
-            origem: d.trechos.retorno.origem,
-            destino: d.trechos.retorno.destino,
-            data_hora: d.trechos.retorno.data_hora ? (d.trechos.retorno.data_hora + ":00") : null
-          }
+          ida: d.trechos.ida.map(t => ({
+            origem: t.origem,
+            destino: t.destino,
+            data_hora: t.data_hora ? (t.data_hora + ":00") : null
+          })),
+          retorno: d.trechos.retorno.map(t => ({
+            origem: t.origem,
+            destino: t.destino,
+            data_hora: t.data_hora ? (t.data_hora + ":00") : null
+          }))
         },
         missao: {
           inicio_data_hora: d.missao.inicio_data_hora ? (d.missao.inicio_data_hora + ":00") : null,
@@ -1942,8 +2081,6 @@ Depois disso, você pode revisar os campos no formulário e gerar o DOC/PDF.`;
         const s = chatFull.state;
         if (
           s === "start" ||
-          s === "trechos.retorno.origem" ||
-          s === "trechos.retorno.destino" ||
           s === "motivo_viagem" ||
           s === "motivo.modelo" ||
           s === "debito_recurso.tipo" ||
@@ -1955,10 +2092,6 @@ Depois disso, você pode revisar os campos no formulário e gerar o DOC/PDF.`;
         else if (
           s === "data_solicitacao" || s === "servidor.data_nascimento"
         ) setMode("date");
-        else if (
-          s === "trechos.ida.data_hora" || s === "trechos.retorno.data_hora" ||
-          s === "missao.inicio_data_hora" || s === "missao.termino_data_hora"
-        ) setMode("datetime");
         else setMode("text");
 
         oldAsk();
@@ -2145,8 +2278,60 @@ Depois disso, você pode revisar os campos no formulário e gerar o DOC/PDF.`;
         const origem = t?.origem || "—";
         const destino = t?.destino || "—";
         const dh = fmtDT(t?.data_hora);
-        return `${i + 1}) ${origem} → ${destino} (${dh})`;
+        return `${i + 1}) De ${origem} para ${destino} em ${dh}`;
       });
+    }
+
+    function formatSolicitacaoTipo(value) {
+      const map = {
+        diarias: "Diárias",
+        passagens: "Passagens",
+        diarias_e_passagens: "Diárias e passagens"
+      };
+      return map[value] || (value ? String(value) : "—");
+    }
+
+    function formatTransporteMeios(meios) {
+      const map = {
+        veiculo_oficial: "Veículo oficial",
+        veiculo_proprio: "Veículo próprio",
+        passagem: "Passagem",
+        outro: "Outro"
+      };
+      return (Array.isArray(meios) ? meios : []).map(m => map[m] || m).join(', ') || '—';
+    }
+
+    function buildAutoMotivo() {
+      const p = formToJSON();
+      const fmtDT = (v) => formatDateTimeBR(v) || "—";
+      const ida = normalizeTrechoList(p.trechos?.ida || []);
+      const ret = normalizeTrechoList(p.trechos?.retorno || []);
+
+      const idaText = ida.length
+        ? ida.map((t, i) => `trecho ${i + 1}: ${t.origem || '??'} → ${t.destino || '??'} em ${fmtDT(t.data_hora)}`).join('; ')
+        : 'não informado';
+      const retText = ret.length
+        ? ret.map((t, i) => `trecho ${i + 1}: ${t.origem || '??'} → ${t.destino || '??'} em ${fmtDT(t.data_hora)}`).join('; ')
+        : 'não informado';
+      const missaoInicio = fmtDT(p.missao?.inicio_data_hora);
+      const missaoTermino = fmtDT(p.missao?.termino_data_hora);
+
+      const servidor = p.servidor || {};
+      const nome = servidor.nome_completo || 'Servidor não informado';
+      const cargo = servidor.cargo_funcao || 'cargo não informado';
+
+      return `Viagem solicitada para ${nome} (${cargo}); ida: ${idaText}; retorno: ${retText}; missão prevista: de ${missaoInicio} até ${missaoTermino}.` +
+        "\n\nPor favor, acrescente aqui detalhes da missão (objetivo, atividades e resultados esperados).";
+    }
+
+    function fillMotivoFromDates() {
+      const motivoEl = form.querySelector('[name="motivo_viagem"]');
+      if (!motivoEl) return;
+      const auto = buildAutoMotivo();
+      const current = (motivoEl.value || "").trim();
+      if (!current || current.length < 20) {
+        motivoEl.value = auto;
+      }
     }
 
     function renderReview() {
@@ -2160,32 +2345,38 @@ Depois disso, você pode revisar os campos no formulário e gerar o DOC/PDF.`;
       const resumo = [
         "Resumo amigável:",
         "",
-        `• Tipo: ${p.tipo_solicitacao || "—"} | Solicitação: ${fmtDate(p.data_solicitacao)}`,
+        `• Tipo de solicitação: ${formatSolicitacaoTipo(p.tipo_solicitacao)}; Data da solicitação: ${fmtDate(p.data_solicitacao)}`,
         "",
         "Servidor:",
-        `• ${p.servidor?.nome_completo || "—"} | Cargo: ${p.servidor?.cargo_funcao || "—"}`,
-        `• CPF: ${p.servidor?.cpf || "—"} | SIAPE: ${p.servidor?.siape || "—"} | E-mail: ${p.servidor?.email || "—"}`,
+        `• Nome: ${p.servidor?.nome_completo || "—"}`,
+        `• Cargo/Função: ${p.servidor?.cargo_funcao || "—"}`,
+        `• CPF: ${p.servidor?.cpf || "—"}; SIAPE: ${p.servidor?.siape || "—"}; E-mail: ${p.servidor?.email || "—"}`,
         "",
         "Viagem:",
-        "• Ida:",
-        ...idaLines.map(l => `  ${l}`),
-        "• Retorno:",
-        ...retLines.map(l => `  ${l}`),
+        ...idaLines.map(l => `• ${l}`),
+        ...retLines.map(l => `• ${l}`),
         "",
         "Missão:",
-        `• Início: ${fmtDT(p.missao?.inicio_data_hora)} | Término: ${fmtDT(p.missao?.termino_data_hora)}`,
+        `• Início: ${fmtDT(p.missao?.inicio_data_hora)}; Término: ${fmtDT(p.missao?.termino_data_hora)}`,
+        "",
+        "Motivo da viagem:",
+        `• ${p.motivo_viagem || "—"}`,
         "",
         "Recurso:",
-        `• Tipo: ${p.debito_recurso?.tipo || "—"} ${p.debito_recurso?.detalhe ? "• Detalhe: " + p.debito_recurso.detalhe : ""}`,
+        `• Tipo: ${p.debito_recurso?.tipo || "—"}${p.debito_recurso?.detalhe ? `; Detalhe: ${p.debito_recurso.detalhe}` : ""}`,
         "",
         "Transporte:",
-        `• Meios: ${(p.transporte?.meios || []).join(", ") || "—"}`,
+        `• Meios: ${formatTransporteMeios(p.transporte?.meios)}`,
         "",
         "Justificativas:",
         `• Fim de semana/feriado/dia anterior: ${p.flags?.envolve_fds_feriado_ou_dia_anterior ? "SIM" : "NÃO"}`,
         `• Fora do prazo: ${p.flags?.fora_do_prazo ? "SIM" : "NÃO"}`,
-        `• Just. FDS: ${p.justificativas?.justificativa_fds_feriado_dia_anterior || "—"}`,
-        `• Just. Prazo: ${p.justificativas?.justificativa_fora_prazo || "—"}`
+        `• Justificativa FDS: ${p.justificativas?.justificativa_fds_feriado_dia_anterior || "—"}`,
+        `• Justificativa prazo: ${p.justificativas?.justificativa_fora_prazo || "—"}`,
+        "",
+        "─".repeat(60),
+        "⚠ ATENÇÃO: CIENTE DA OBRIGATORIEDADE DE PROVIDENCIAR ASSINATURAS VIA SIPAC, GOV.BR OU MANUAL DO REQUISITANTE E DA CHEFIA IMEDIATA NO FORMULÁRIO.",
+        "─".repeat(60)
       ].join("\n");
 
       document.getElementById("reviewText").textContent = resumo;
@@ -2230,8 +2421,8 @@ Depois disso, você pode revisar os campos no formulário e gerar o DOC/PDF.`;
           showErrors(msgs.length ? msgs : ["Revise os campos."]);
           // leva para um passo provável conforme campo
           const first = (previewJson.errors && previewJson.errors[0] && previewJson.errors[0].field) ? previewJson.errors[0].field : "";
-          if (first.startsWith("trechos")) gotoStep(5);
-          else if (first.startsWith("missao")) gotoStep(6);
+          if (first.startsWith("trechos")) gotoStep(3);
+          else if (first.startsWith("missao")) gotoStep(5);
           else if (first.startsWith("justificativas")) gotoStep(8);
           else gotoStep(2);
           return;
@@ -2712,10 +2903,10 @@ Veículo próprio - termo: ${a.meios.includes("veiculo_proprio") ? (a.veic_propr
         termo.checked = a.veic_proprio_ciente;
       }
 
-      // Vai para o primeiro campo que tipicamente exige texto: Motivo (passo 3)
+      // Vai para o primeiro campo que tipicamente exige texto: Motivo (passo 6)
       // (ou você pode ir direto para o próximo passo incompleto)
       guidedModal.style.display = "none";
-      gotoStep(3);
+      gotoStep(6);
     }
 
     

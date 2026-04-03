@@ -49,7 +49,7 @@ def find_one(pattern: str, text: str, flags=re.IGNORECASE) -> Optional[str]:
 
 STOP_LABELS_PATTERN = (
     r"(?:Nome completo|Cargo ou Fun[cç][ãa]o que Ocupa|CPF|RG|Data de Nascimento|"
-    r"Siape|Nome da M[ãa]e|Endere[cç]o|Telefone|Email|Banco|Ag[êe]ncia|Conta)\s*:"
+    r"Siape|Nome da M[ãa]e|Endere[cç]o|Telefone|Email|Dados Banc[aá]rios|Banco|Ag[êe]ncia|Conta)\s*:"
 )
 
 
@@ -141,6 +141,8 @@ def parse_identificacao(text: str) -> Dict[str, Any]:
 
     telefone = find_with_stop(r"Telefone", block) or find_one(r"Telefone:\s*([\d\(\)\-\s]+)", block)
     email = find_with_stop(r"Email", block) or find_one(r"Email:\s*([^\s]+@[^\s]+)", block)
+    if email:
+        email = re.sub(r"\s*Dados Banc[aá]rios:\s*$", "", email, flags=re.IGNORECASE).strip()
 
     banco = find_with_stop(r"Banco", block) or find_one(r"Banco:\s*([A-Za-z0-9]+)", block)
     agencia = find_with_stop(r"Ag[êe]ncia", block) or find_one(r"Ag[êe]ncia:\s*([0-9]+)", block)

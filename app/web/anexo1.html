@@ -2,445 +2,445 @@
 <html lang="pt-br">
 
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="icon" type="image/png" sizes="64x64" href="/static/favicon.png" />
-  <link rel="stylesheet" href="/static/styles.css" />
-  <title>ANEXO I • Requisiçã</title>
-  
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/static/favicon.png" />
+    <link rel="stylesheet" href="/static/styles.css" />
+    <title>ANEXO I • Requisiçã</title>
+
 </head>
 
 <body>
-  <div class="container">
+<div class="container">
 
     <div class="topbar centered">
-      <div class="brand" style="align-items: center;">
-        <img src="/static/brasao.png" alt="Brasão UFPB" class="brand-logo">
-        <div style="display:flex; align-items:center; gap:10px;">
-          <div>
-            <h1>ANEXO I • Requisição (Diárias/Passagens)</h1>
-            <p>Preenchimento guiado, validação automática e geração DOCX/PDF</p>
-          </div>
-          <img src="/static/cchsa.png" alt="CCHSA" class="brand-logo" style="object-fit:contain;">
+        <div class="brand" style="align-items: center;">
+            <img src="/static/brasao.png" alt="Brasão UFPB" class="brand-logo">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div>
+                    <h1>ANEXO I • Requisição (Diárias/Passagens)</h1>
+                    <p>Preenchimento guiado, validação automática e geração DOCX/PDF</p>
+                </div>
+                <img src="/static/cchsa.png" alt="CCHSA" class="brand-logo" style="object-fit:contain;">
+            </div>
         </div>
-      </div>
-      <div class="actions" style="justify-content:center; width:100%;">
-        <a class="btn btn-ghost" href="/">Início</a>
-        <button type="button" class="btn btn-ghost" data-theme-toggle aria-pressed="false">Modo claro</button>
-        <div class="font-controls" aria-label="Ajuste de fonte">
-          <button type="button" class="btn btn-ghost btn-compact" data-font-dec aria-label="Diminuir fonte">A-</button>
-          <span class="pill font-pill" data-font-display>100%</span>
-          <button type="button" class="btn btn-ghost btn-compact" data-font-inc aria-label="Aumentar fonte">A+</button>
+        <div class="actions" style="justify-content:center; width:100%;">
+            <a class="btn btn-ghost" href="/">Início</a>
+            <button type="button" class="btn btn-ghost" data-theme-toggle aria-pressed="false">Modo claro</button>
+            <div class="font-controls" aria-label="Ajuste de fonte">
+                <button type="button" class="btn btn-ghost btn-compact" data-font-dec aria-label="Diminuir fonte">A-</button>
+                <span class="pill font-pill" data-font-display>100%</span>
+                <button type="button" class="btn btn-ghost btn-compact" data-font-inc aria-label="Aumentar fonte">A+</button>
+            </div>
+            <span id="statusBadge" class="badge">Rascunho</span>
         </div>
-        <span id="statusBadge" class="badge">Rascunho</span>
-      </div>
     </div>
     <div class="card-assistent">
-      <div class="card" style="margin:0; text-align:center;">
-        <div class="row" style="margin-top:4px; justify-content:center;">
-          <button type="button" class="btn btn-accent" id="btnChatFull">
-            <svg class="icon-robot" aria-hidden="true" viewBox="0 0 24 24">
-              <path fill="currentColor"
-                d="M11 2h2v3h3v2H8V5h3V2Zm-5 7h12a2 2 0 0 1 2 2v6h-2v3H6v-3H4v-6a2 2 0 0 1 2-2Zm0 2v4h12v-4H6Zm4 6a1.5 1.5 0 1 0 0 3h4a1.5 1.5 0 1 0 0-3h-4Zm-2-6.5a1 1 0 1 0 0 2 1 1 0 0 0 0-2Zm8 0a1 1 0 1 0 0 2Z" />
-            </svg>
-            <span>Assistente (conversa)</span>
-          </button>
+        <div class="card" style="margin:0; text-align:center;">
+            <div class="row" style="margin-top:4px; justify-content:center;">
+                <button type="button" class="btn btn-accent" id="btnChatFull">
+                    <svg class="icon-robot" aria-hidden="true" viewBox="0 0 24 24">
+                        <path fill="currentColor"
+                              d="M11 2h2v3h3v2H8V5h3V2Zm-5 7h12a2 2 0 0 1 2 2v6h-2v3H6v-3H4v-6a2 2 0 0 1 2-2Zm0 2v4h12v-4H6Zm4 6a1.5 1.5 0 1 0 0 3h4a1.5 1.5 0 1 0 0-3h-4Zm-2-6.5a1 1 0 1 0 0 2 1 1 0 0 0 0-2Zm8 0a1 1 0 1 0 0 2Z" />
+                    </svg>
+                    <span>Assistente (conversa)</span>
+                </button>
+            </div>
+            <div class="helper" style="font-size:calc((var(--fs-md) + 2px)*var(--font-scale)); max-width:460px; margin:12px auto 4px;">
+                Clicando aqui você terá uma conversa com nosso agente online que irá facilitar o preenchimento do formulário.
+            </div>
         </div>
-        <div class="helper" style="font-size:calc((var(--fs-md)+2px)*var(--font-scale)); max-width:460px; margin:12px auto 4px;">
-          Clicando aqui você terá uma conversa com nosso agente online que irá facilitar o preenchimento do formulário.
-        </div>
-      </div>
     </div>
 
     <div class="card">
-      <div class="card-header">
-        <div>
-          <h2 id="stepTitle">Passo 1</h2>
-          <div class="meta">
-            <span id="stepMeta">Preencha os dados para avançar.</span>
-          </div>
-        </div>
-        <span class="pill">
+        <div class="card-header">
+            <div>
+                <h2 id="stepTitle">Passo 1</h2>
+                <div class="meta">
+                    <span id="stepMeta">Preencha os dados para avançar.</span>
+                </div>
+            </div>
+            <span class="pill">
           <span id="stepCount">1</span>/<span id="stepTotal">9</span>
         </span>
-      </div>
-
-      <div style="margin-top:10px;">
-        <div class="progress-shell">
-          <div id="progressBar" class="progress-bar"></div>
         </div>
-      </div>
+
+        <div style="margin-top:10px;">
+            <div class="progress-shell">
+                <div id="progressBar" class="progress-bar"></div>
+            </div>
+        </div>
     </div>
 
     <div class="card" id="importAnexo1CardSelf">
-      <div class="card-header">
-        <div>
-          <h2>Importar dados de um Anexo I preenchido</h2>
-          <div class="meta">Reutilize um Anexo I (PDF/DOC/DOCX) para preencher este formulário automaticamente.</div>
+        <div class="card-header">
+            <div>
+                <h2>Importar dados de um Anexo I preenchido</h2>
+                <div class="meta">Reutilize um Anexo I (PDF/DOC/DOCX) para preencher este formulário automaticamente.</div>
+            </div>
+            <span id="importSelfBadge" class="badge">Opcional</span>
         </div>
-        <span id="importSelfBadge" class="badge">Opcional</span>
-      </div>
-      <div class="row" style="gap:10px; flex-wrap:wrap;">
-        <input id="inputAnexo1Self" type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
-        <button type="button" class="btn" id="btnImportAnexo1Self">Ler arquivo</button>
-        <div id="importSelfProgress" class="progress-indicator" style="display:none;">
-          <div class="spinner" aria-hidden="true"></div>
-          <span data-progress-text>Interpretando Anexo I...</span>
+        <div class="row" style="gap:10px; flex-wrap:wrap;">
+            <input id="inputAnexo1Self" type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+            <button type="button" class="btn" id="btnImportAnexo1Self">Ler arquivo</button>
+            <div id="importSelfProgress" class="progress-indicator" style="display:none;">
+                <div class="spinner" aria-hidden="true"></div>
+                <span data-progress-text>Interpretando Anexo I...</span>
+            </div>
         </div>
-      </div>
-      <div class="helper" id="importSelfHelper">Selecione o Anexo I preenchido para reaproveitar os dados.</div>
-      <div class="helper" id="importSelfWarnings" style="display:none;"></div>
+        <div class="helper" id="importSelfHelper">Selecione o Anexo I preenchido para reaproveitar os dados.</div>
+        <div class="helper" id="importSelfWarnings" style="display:none;"></div>
     </div>
 
     <form id="wizardForm" novalidate>
 
-      <!-- STEP 1: Tipo + Data -->
-      <section class="card step" data-step="1" data-title="Tipo de solicitação"
-        data-subtitle="Define o prazo automaticamente (10 dias sem passagens; 30 dias com passagens).">
-        <h2>1) Tipo de solicitação</h2>
+        <!-- STEP 1: Tipo + Data -->
+        <section class="card step" data-step="1" data-title="Tipo de solicitação"
+                 data-subtitle="Define o prazo automaticamente (10 dias sem passagens; 30 dias com passagens).">
+            <h2>1) Tipo de solicitação</h2>
 
-        <label>Tipo</label>
-        <select name="tipo_solicitacao" required>
-          <option value="">Selecione...</option>
-          <option value="diarias">Diárias</option>
-          <option value="passagens">Passagens</option>
-          <option value="diarias_e_passagens">Diárias + Passagens</option>
-        </select>
+            <label>Tipo</label>
+            <select name="tipo_solicitacao" required>
+                <option value="">Selecione...</option>
+                <option value="diarias">Diárias</option>
+                <option value="passagens">Passagens</option>
+                <option value="diarias_e_passagens">Diárias + Passagens</option>
+            </select>
 
-        <label>Data da solicitação</label>
-        <input id="dataSolicDisplay" type="text" inputmode="numeric" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" placeholder="dd/mm/aaaa" required style="width:100%;">
-        <input name="data_solicitacao" type="hidden">
+            <label>Data da solicitação</label>
+            <input id="dataSolicDisplay" type="text" inputmode="numeric" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" placeholder="dd/mm/aaaa" required style="width:100%;">
+            <input name="data_solicitacao" type="hidden">
 
-        <div class="helper">
-          O sistema calculará automaticamente “fora do prazo” com base na data da ida.
-        </div>
-      </section>
-
-      <!-- STEP 2: Identificação -->
-      <section class="card step" data-step="2" data-title="Identificação do servidor"
-        data-subtitle="Dados pessoais e bancários.">
-        <h2>2) Identificação do servidor</h2>
-        <div class="grid2">
-          <div>
-            <label>Nome completo</label>
-            <input name="servidor.nome_completo" required placeholder="Ex.: João da Silva">
-          </div>
-          <div>
-            <label>Cargo/Função</label>
-            <input name="servidor.cargo_funcao" required placeholder="Ex.: Professor Adjunto">
-          </div>
-          <div>
-            <label>CPF (somente números)</label>
-            <input name="servidor.cpf" inputmode="numeric" pattern="[0-9]{11}" maxlength="11" required
-              placeholder="Ex.: 12345678901">
-          </div>
-          <div>
-            <label>RG</label>
-            <input name="servidor.rg" required placeholder="Ex.: 1234567 SSP/UF">
-          </div>
-          <div>
-            <label>Data de nascimento</label>
-          <input id="dataNascDisplay" type="text" inputmode="numeric" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" placeholder="dd/mm/aaaa" required>
-          <input name="servidor.data_nascimento" type="hidden">
-          </div>
-          <div>
-            <label>SIAPE (somente números)</label>
-            <input name="servidor.siape" inputmode="numeric" pattern="[0-9]{4,15}" required placeholder="Ex.: 123456">
-          </div>
-          <div>
-            <label>Nome da mãe</label>
-            <input name="servidor.nome_mae" required placeholder="Ex.: Maria de Souza Silva">
-          </div>
-          <div>
-            <label>Telefone (somente números)</label>
-            <input name="servidor.telefone" inputmode="numeric" pattern="[0-9]{10,11}" required
-              placeholder="DDD+Número">
-          </div>
-          <div style="grid-column:1/-1;">
-            <label>Endereço</label>
-            <input name="servidor.endereco" required placeholder="Ex.: Rua X, 123 - Bairro - Cidade/UF">
-          </div>
-          <div style="grid-column:1/-1;">
-            <label>E-mail</label>
-            <input name="servidor.email" type="email" required placeholder="Ex.: nome@instituicao.br">
-          </div>
-          <div>
-            <label>Banco</label>
-            <input name="servidor.dados_bancarios.banco" required placeholder="Ex.:(Banco do Brasil, Caixa...)">
-          </div>
-          <div>
-            <label>Agência</label>
-            <input name="servidor.dados_bancarios.agencia" inputmode="numeric" pattern="[0-9]{1,10}" required placeholder="Ex.: 001">
-          </div>
-          <div>
-            <label>Conta</label>
-            <input name="servidor.dados_bancarios.conta" inputmode="numeric" pattern="[0-9]{1,20}" required placeholder="Ex.: 12345-6">
-          </div>
-        </div>
-      </section>
-
-      <!-- STEP 3: Motivo -->
-      <section class="card step" data-step="3" data-title="Motivo da viagem"
-        data-subtitle="Descreva de forma objetiva o motivo da solicitação.">
-        <h2>3) Motivo da viagem</h2>
-        <label>Descrição do motivo</label>
-        <textarea name="motivo_viagem" minlength="20" required
-          placeholder="Descreva o motivo da viagem (mínimo 20 caracteres)."></textarea>
-      </section>
-
-      <!-- STEP 4: Ida -->
-      <section class="card step" data-step="4" data-title="Trecho de ida"
-        data-subtitle="Origem, destino e data/hora da partida.">
-        <h2>4) Ida</h2>
-        <div id="idaSegments" class="segment-list"></div>
-        <button type="button" class="btn btn-ghost btn-compact" id="addIdaSegment">+ Adicionar trecho de ida</button>
-      </section>
-
-      <!-- STEP 5: Retorno -->
-      <section class="card step" data-step="5" data-title="Trecho de retorno"
-        data-subtitle="Origem, destino e data/hora do retorno.">
-        <h2>5) Retorno</h2>
-        <div id="retornoSegments" class="segment-list"></div>
-        <button type="button" class="btn btn-ghost btn-compact" id="addRetornoSegment">+ Adicionar trecho de retorno</button>
-        <div class="helper">Regra: retorno não pode ser anterior à ida.</div>
-      </section>
-
-      <!-- STEP 6: Missão -->
-      <section class="card step" data-step="6" data-title="Período da missão"
-        data-subtitle="Início e término dentro dos trechos.">
-        <h2>6) Período da missão</h2>
-        <div class="grid2">
-          <div>
-            <label>Início da missão</label>
-            <input name="missao.inicio_data_hora" type="datetime-local" required placeholder="dd/mm/aaaa hh:mm">
-          </div>
-          <div>
-            <label>Término da missão</label>
-            <input name="missao.termino_data_hora" type="datetime-local" required placeholder="dd/mm/aaaa hh:mm">
-          </div>
-        </div>
-        <div class="helper">
-          Regras: término maior ou igual ao início; início maior ou igual à ida; término menor ou igual ao retorno.
-        </div>
-      </section>
-
-      <!-- STEP 7: Recurso + Transporte -->
-      <section class="card step" data-step="7" data-title="Recurso e transporte"
-        data-subtitle="Selecione débito do recurso e meio(s) de transporte.">
-        <h2>7) Recurso e transporte</h2>
-
-        <label>Débito do recurso</label>
-        <select name="debito_recurso.tipo" id="deb_tipo" required>
-          <option value="">Selecione...</option>
-          <option value="cchsa">CCHSA</option>
-          <option value="cavn">CAVN</option>
-          <option value="projeto">Projeto</option>
-          <option value="outros">Outros</option>
-        </select>
-
-        <div id="debDetalheWrap" style="display:none;">
-          <label>Detalhe (obrigatório para Projeto/Outros)</label>
-          <input name="debito_recurso.detalhe" id="deb_det"
-            placeholder="Ex.: Nome/código do projeto ou detalhe de outros">
-        </div>
-
-        <hr class="sep" />
-
-        <label>Meio(s) de transporte</label>
-
-        <label class="checkbox">
-          <input type="checkbox" name="transporte.meios" value="veiculo_oficial">
-          <div><span>Veículo oficial</span><small>Ter ciência de que a reserva do veículo deverá ser feita enviando a solicitação  junto ao setor de transporte.</small></div>
-        </label>
-
-        <label class="checkbox">
-          <input type="checkbox" name="transporte.meios" value="empresa_terrestre">
-          <div><span>Empresa terrestre</span><small>Ônibus/van/serviço terrestre.</small></div>
-        </label>
-
-        <label class="checkbox">
-          <input type="checkbox" name="transporte.meios" value="empresa_aerea">
-          <div><span>Empresa aérea</span><small>Ciente para enviar as sugestões de voo no processo SIPAC.</small></div>
-        </label>
-
-        <label class="checkbox">
-          <input type="checkbox" name="transporte.meios" value="veiculo_proprio" id="chkVeicProprio">
-          <div><span>Veículo próprio</span><small>Exige ciência do termo de responsabilidade.</small></div>
-        </label>
-
-        <div id="termoWrap" style="display:none;margin-top:10px;">
-          <label class="checkbox">
-            <input type="checkbox" name="transporte.termo_veiculo_proprio_ciente" value="true" id="termoCiente">
-            <div><span>Ciente do termo de responsabilidade</span><small>Obrigatório quando marcar “veículo próprio”.</small></div>
-          </label>
-        </div>
-      </section>
-
-      <!-- STEP 8: Checagem automática + justificativas -->
-      <section class="card step" data-step="8" data-title="Checagem e justificativas"
-        data-subtitle="O sistema exige justificativas quando necessário.">
-        <h2>8) Checagem e justificativas</h2>
-
-        <div class="row">
-          <span id="badgePrazo" class="badge">Prazo: —</span>
-          <span id="badgeFds" class="badge">Fim de semana: —</span>
-        </div>
-
-        <div class="helper">
-          Observação: “Fora do prazo” é calculado automaticamente conforme o tipo (10/30 dias) e a data da ida.
-        </div>
-
-        <hr class="sep" />
-
-        <label class="checkbox">
-          <input type="checkbox" name="flags.envolve_fds_feriado_ou_dia_anterior" value="true" id="flagFds">
-          <div>
-            <span>Exigir justificativa (fim de semana/feriado/saída dia anterior)</span>
-            <small>O sistema marca automaticamente se a ida cair em sábado/domingo; você pode marcar manualmente para
-              “dia anterior”.</small>
-          </div>
-        </label>
-
-        <div id="wrapJustFds" style="display:none;">
-          <label>Justificativa (fim de semana/feriado/dia anterior)</label>
-          <textarea name="justificativas.justificativa_fds_feriado_dia_anterior" id="justFds"
-            placeholder="Informe a justificativa."></textarea>
-        </div>
-
-        <label class="checkbox" style="margin-top:10px;">
-          <input type="checkbox" name="flags.fora_do_prazo" value="true" id="flagPrazo" disabled>
-          <div>
-            <span>Solicitação fora do prazo (calculado automaticamente)</span>
-            <small>Se estiver fora do prazo, a justificativa será obrigatória.</small>
-          </div>
-        </label>
-
-        <div id="wrapJustPrazo" style="display:none;">
-          <label>Justificativa (fora do prazo)</label>
-          <textarea name="justificativas.justificativa_fora_prazo" id="justPrazo"
-            placeholder="Informe a justificativa fora do prazo."></textarea>
-        </div>
-      </section>
-
-      <!-- STEP 9: Revisão + geração -->
-      <section class="card step" data-step="9" data-title="Revisão final"
-        data-subtitle="Revise o resumo e gere o documento.">
-        <h2>9) Revisão final</h2>
-
-        <div class="card" style="margin:0;">
-          <div class="card-header">
-            <div>
-              <h2>Resumo</h2>
-              <div class="meta">Confira antes de gerar.</div>
+            <div class="helper">
+                O sistema calculará automaticamente “fora do prazo” com base na data da ida.
             </div>
-            <span id="reviewBadge" class="badge">—</span>
-          </div>
+        </section>
 
-          <pre id="reviewText" class="review-text"></pre>
+        <!-- STEP 2: Identificação -->
+        <section class="card step" data-step="2" data-title="Identificação do servidor"
+                 data-subtitle="Dados pessoais e bancários.">
+            <h2>2) Identificação do servidor</h2>
+            <div class="grid2">
+                <div>
+                    <label>Nome completo</label>
+                    <input name="servidor.nome_completo" required placeholder="Ex.: João da Silva">
+                </div>
+                <div>
+                    <label>Cargo/Função</label>
+                    <input name="servidor.cargo_funcao" required placeholder="Ex.: Professor Adjunto">
+                </div>
+                <div>
+                    <label>CPF (somente números)</label>
+                    <input name="servidor.cpf" inputmode="numeric" pattern="[0-9]{11}" maxlength="11" required
+                           placeholder="Ex.: 12345678901">
+                </div>
+                <div>
+                    <label>RG</label>
+                    <input name="servidor.rg" required placeholder="Ex.: 1234567 SSP/UF">
+                </div>
+                <div>
+                    <label>Data de nascimento</label>
+                    <input id="dataNascDisplay" type="text" inputmode="numeric" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" placeholder="dd/mm/aaaa" required>
+                    <input name="servidor.data_nascimento" type="hidden">
+                </div>
+                <div>
+                    <label>SIAPE (somente números)</label>
+                    <input name="servidor.siape" inputmode="numeric" pattern="[0-9]{4,15}" required placeholder="Ex.: 123456">
+                </div>
+                <div>
+                    <label>Nome da mãe</label>
+                    <input name="servidor.nome_mae" required placeholder="Ex.: Maria de Souza Silva">
+                </div>
+                <div>
+                    <label>Telefone (somente números)</label>
+                    <input name="servidor.telefone" inputmode="numeric" pattern="[0-9]{10,11}" required
+                           placeholder="DDD+Número">
+                </div>
+                <div style="grid-column:1/-1;">
+                    <label>Endereço</label>
+                    <input name="servidor.endereco" required placeholder="Ex.: Rua X, 123 - Bairro - Cidade/UF">
+                </div>
+                <div style="grid-column:1/-1;">
+                    <label>E-mail</label>
+                    <input name="servidor.email" type="email" required placeholder="Ex.: nome@instituicao.br">
+                </div>
+                <div>
+                    <label>Banco</label>
+                    <input name="servidor.dados_bancarios.banco" required placeholder="Ex.:(Banco do Brasil, Caixa...)">
+                </div>
+                <div>
+                    <label>Agência</label>
+                    <input name="servidor.dados_bancarios.agencia" inputmode="numeric" pattern="[0-9]{1,10}" required placeholder="Ex.: 001">
+                </div>
+                <div>
+                    <label>Conta</label>
+                    <input name="servidor.dados_bancarios.conta" inputmode="numeric" pattern="[0-9]{1,20}" required placeholder="Ex.: 12345-6">
+                </div>
+            </div>
+        </section>
+
+        <!-- STEP 3: Ida -->
+        <section class="card step" data-step="3" data-title="Trecho de ida"
+                 data-subtitle="Origem, destino e data/hora da partida.">
+            <h2>3) Ida</h2>
+            <div id="idaSegments" class="segment-list"></div>
+            <button type="button" class="btn btn-ghost btn-compact" id="addIdaSegment">+ Adicionar trecho de ida</button>
+        </section>
+
+        <!-- STEP 4: Retorno -->
+        <section class="card step" data-step="4" data-title="Trecho de retorno"
+                 data-subtitle="Origem, destino e data/hora do retorno.">
+            <h2>4) Retorno</h2>
+            <div id="retornoSegments" class="segment-list"></div>
+            <button type="button" class="btn btn-ghost btn-compact" id="addRetornoSegment">+ Adicionar trecho de retorno</button>
+            <div class="helper">Regra: retorno não pode ser anterior à ida.</div>
+        </section>
+
+        <!-- STEP 5: Missão -->
+        <section class="card step" data-step="5" data-title="Período da missão"
+                 data-subtitle="Início e término dentro dos trechos.">
+            <h2>5) Período da missão</h2>
+            <div class="grid2">
+                <div>
+                    <label>Início da missão</label>
+                    <input name="missao.inicio_data_hora" type="datetime-local" required placeholder="dd/mm/aaaa hh:mm">
+                </div>
+                <div>
+                    <label>Término da missão</label>
+                    <input name="missao.termino_data_hora" type="datetime-local" required placeholder="dd/mm/aaaa hh:mm">
+                </div>
+            </div>
+            <div class="helper">
+                Regras: término maior ou igual ao início; início maior ou igual à ida; término menor ou igual ao retorno.
+            </div>
+        </section>
+
+        <!-- STEP 6: Motivo -->
+        <section class="card step" data-step="6" data-title="Motivo da viagem"
+                 data-subtitle="Descreva de forma objetiva o motivo da solicitação ou use o texto sugerido.">
+            <h2>6) Motivo da viagem</h2>
+            <label>Descrição do motivo</label>
+            <textarea name="motivo_viagem" minlength="20" required
+                      placeholder="Descreva o motivo da viagem (mínimo 20 caracteres)."></textarea>
+        </section>
+
+        <!-- STEP 7: Recurso + Transporte -->
+        <section class="card step" data-step="7" data-title="Recurso e transporte"
+                 data-subtitle="Selecione débito do recurso e meio(s) de transporte.">
+            <h2>7) Recurso e transporte</h2>
+
+            <label>Débito do recurso</label>
+            <select name="debito_recurso.tipo" id="deb_tipo" required>
+                <option value="">Selecione...</option>
+                <option value="cchsa">CCHSA</option>
+                <option value="cavn">CAVN</option>
+                <option value="projeto">Projeto</option>
+                <option value="outros">Outros</option>
+            </select>
+
+            <div id="debDetalheWrap" style="display:none;">
+                <label>Detalhe (obrigatório para Projeto/Outros)</label>
+                <input name="debito_recurso.detalhe" id="deb_det"
+                       placeholder="Ex.: Nome/código do projeto ou detalhe de outros">
+            </div>
+
+            <hr class="sep" />
+
+            <label>Meio(s) de transporte</label>
+
+            <label class="checkbox">
+                <input type="checkbox" name="transporte.meios" value="veiculo_oficial">
+                <div><span>Veículo oficial</span><small>A solicitação deverá ocorrer diretamente com o setor de transporte em formulário específico.</small></div>
+            </label>
+
+            <label class="checkbox">
+                <input type="checkbox" name="transporte.meios" value="empresa_terrestre">
+                <div><span>Empresa terrestre</span><small>Ônibus/van/serviço terrestre.</small></div>
+            </label>
+
+            <label class="checkbox">
+                <input type="checkbox" name="transporte.meios" value="empresa_aerea">
+                <div><span>Empresa aérea</span><small>Ciente para enviar as sugestões de voo no processo SIPAC.</small></div>
+            </label>
+
+            <label class="checkbox">
+                <input type="checkbox" name="transporte.meios" value="veiculo_proprio" id="chkVeicProprio">
+                <div><span>Veículo próprio</span><small>Anexar a este processo o TERMO DE OPÇÃO - FORMULÁRIO VEÍCULO PRÓPRIO.</small></div>
+            </label>
+
+            <div id="termoWrap" style="display:none;margin-top:10px;">
+                <label class="checkbox">
+                    <input type="checkbox" name="transporte.termo_veiculo_proprio_ciente" value="true" id="termoCiente">
+                    <div><span>Ciente do termo de responsabilidade</span><small>Obrigatório quando marcar “veículo próprio”.</small></div>
+                </label>
+            </div>
+        </section>
+
+        <!-- STEP 8: Checagem automática + justificativas -->
+        <section class="card step" data-step="8" data-title="Checagem e justificativas"
+                 data-subtitle="O sistema exige justificativas quando necessário.">
+            <h2>8) Checagem e justificativas</h2>
+
+            <div class="row">
+                <span id="badgePrazo" class="badge">Prazo: —</span>
+                <span id="badgeFds" class="badge">Fim de semana: —</span>
+            </div>
+
+            <div class="helper">
+                Observação: “Fora do prazo” é calculado automaticamente conforme o tipo (10/30 dias) e a data da ida.
+            </div>
+
+            <hr class="sep" />
+
+            <label class="checkbox">
+                <input type="checkbox" name="flags.envolve_fds_feriado_ou_dia_anterior" value="true" id="flagFds">
+                <div>
+                    <span>Exigir justificativa (fim de semana/feriado/saída dia anterior)</span>
+                    <small>O sistema marca automaticamente se a ida cair em sábado/domingo; você pode marcar manualmente para
+                        “dia anterior”.</small>
+                </div>
+            </label>
+
+            <div id="wrapJustFds" style="display:none;">
+                <label>Justificativa (fim de semana/feriado/dia anterior)</label>
+                <textarea name="justificativas.justificativa_fds_feriado_dia_anterior" id="justFds"
+                          placeholder="Informe a justificativa."></textarea>
+            </div>
+
+            <label class="checkbox" style="margin-top:10px;">
+                <input type="checkbox" name="flags.fora_do_prazo" value="true" id="flagPrazo" disabled>
+                <div>
+                    <span>Solicitação fora do prazo (calculado automaticamente)</span>
+                    <small>Se estiver fora do prazo, a justificativa será obrigatória.</small>
+                </div>
+            </label>
+
+            <div id="wrapJustPrazo" style="display:none;">
+                <label>Justificativa (fora do prazo)</label>
+                <textarea name="justificativas.justificativa_fora_prazo" id="justPrazo"
+                          placeholder="Informe a justificativa fora do prazo."></textarea>
+            </div>
+        </section>
+
+        <!-- STEP 9: Revisão + geração -->
+        <section class="card step" data-step="9" data-title="Revisão final"
+                 data-subtitle="Revise o resumo e gere o documento.">
+            <h2>9) Revisão final</h2>
+
+            <div class="card" style="margin:0;">
+                <div class="card-header">
+                    <div>
+                        <h2>Resumo</h2>
+                        <div class="meta">Confira antes de gerar.</div>
+                    </div>
+                    <span id="reviewBadge" class="badge">—</span>
+                </div>
+
+                <pre id="reviewText" class="review-text"></pre>
+            </div>
+
+            <hr class="sep" />
+
+            <div class="row">
+                <button type="button" class="btn btn-primary" id="btnDocx">Gerar DOCX</button>
+                <button type="button" class="btn" id="btnPdf">Gerar PDF</button>
+            </div>
+            <div id="generateProgress" class="progress-indicator" style="display:none; margin-top:10px;">
+                <div class="spinner" aria-hidden="true"></div>
+                <span data-progress-text>Gerando documento...</span>
+            </div>
+
+            <div class="helper">
+                Se houver erro de validação, o sistema mostrará o motivo e direcionará para correção.
+            </div>
+        </section>
+
+        <!-- Navigation -->
+
+        <div class="card">
+            <div id="errors" class="errors" style="display:none; margin-top:0;"></div>
+            <hr>
+            <div class="row">
+
+                <button type="button" class="btn btn-ghost" id="btnBack">Voltar</button>
+                <button type="button" class="btn btn-primary" id="btnNext">Avançar</button>
+            </div>
         </div>
 
-        <hr class="sep" />
 
-        <div class="row">
-          <button type="button" class="btn btn-primary" id="btnDocx">Gerar DOCX</button>
-          <button type="button" class="btn" id="btnPdf">Gerar PDF</button>
-        </div>
-        <div id="generateProgress" class="progress-indicator" style="display:none; margin-top:10px;">
-          <div class="spinner" aria-hidden="true"></div>
-          <span data-progress-text>Gerando documento...</span>
-        </div>
-
-        <div class="helper">
-          Se houver erro de validação, o sistema mostrará o motivo e direcionará para correção.
-        </div>
-      </section>
-
-      <!-- Navigation -->
-      
-      <div class="card">
-        <div id="errors" class="errors" style="display:none; margin-top:0;"></div>
-        <hr>
-        <div class="row">
-          
-          <button type="button" class="btn btn-ghost" id="btnBack">Voltar</button>
-          <button type="button" class="btn btn-primary" id="btnNext">Avançar</button>
-        </div>
-      </div>
-
-      
 
     </form>
-  </div>
+</div>
 
-  <div id="chatFullModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:10000;">
+<div id="chatFullModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:10000;">
     <div class="card" style="max-width:980px; margin:4vh auto; padding:0; overflow:hidden;">
-      <div class="card-header" style="padding:14px 16px;">
-        <div>
-          <h2>Assistente de Requisição (ANEXO I)</h2>
-          <div class="meta" id="chatFullMeta">Vou coletar as informações e evitar erros automaticamente.</div>
-        </div>
-        <button type="button" class="btn btn-ghost" id="chatFullClose">Fechar</button>
-      </div>
-
-      <div id="chatFullTimeline"
-        style="height:56vh; overflow:auto; padding:14px 16px; background:rgba(255,255,255,0.02);"></div>
-
-      <div style="padding:12px 16px; border-top:1px solid rgba(255,255,255,0.08);">
-        <div id="chatFullQuick" class="row" style="flex-wrap:wrap; gap:8px;"></div>
-
-        <div class="helper" style="margin-top:8px;">
-          Observação: os dados ficam no seu navegador e só vão para o servidor ao gerar o documento.
+        <div class="card-header" style="padding:14px 16px;">
+            <div>
+                <h2>Assistente de Requisição (ANEXO I)</h2>
+                <div class="meta" id="chatFullMeta">Vou coletar as informações e evitar erros automaticamente.</div>
+            </div>
+            <button type="button" class="btn btn-ghost" id="chatFullClose">Fechar</button>
         </div>
 
-        <div id="chatFullTextRow" class="row" style="margin-top:10px; display:none;">
-          <input id="chatFullText" type="text" placeholder="Digite aqui..." style="flex:1;">
-          <button type="button" class="btn btn-primary" id="chatFullSend">Enviar</button>
-        </div>
+        <div id="chatFullTimeline"
+             style="height:56vh; overflow:auto; padding:14px 16px; background:rgba(255,255,255,0.02);"></div>
 
-        <div id="chatFullDateRow" class="row" style="margin-top:10px; display:none;">
-          <input id="chatFullDate" type="text" inputmode="numeric" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" placeholder="dd/mm/aaaa">
-          <button type="button" class="btn btn-primary" id="chatFullDateOk">OK</button>
-        </div>
+        <div style="padding:12px 16px; border-top:1px solid rgba(255,255,255,0.08);">
+            <div id="chatFullQuick" class="row" style="flex-wrap:wrap; gap:8px;"></div>
 
-        <div id="chatFullDTrow" class="row" style="margin-top:10px; display:none;">
-          <input id="chatFullDT" type="datetime-local">
-          <button type="button" class="btn btn-primary" id="chatFullDTok">OK</button>
+            <div class="helper" style="margin-top:8px;">
+                Observação: os dados ficam no seu navegador e só vão para o servidor ao gerar o documento.
+            </div>
+
+            <div id="chatFullTextRow" class="row" style="margin-top:10px; display:none;">
+                <input id="chatFullText" type="text" placeholder="Digite aqui..." style="flex:1;">
+                <button type="button" class="btn btn-primary" id="chatFullSend">Enviar</button>
+            </div>
+
+            <div id="chatFullDateRow" class="row" style="margin-top:10px; display:none;">
+                <input id="chatFullDate" type="text" inputmode="numeric" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" placeholder="dd/mm/aaaa">
+                <button type="button" class="btn btn-primary" id="chatFullDateOk">OK</button>
+            </div>
+
+            <div id="chatFullDTrow" class="row" style="margin-top:10px; display:none;">
+                <input id="chatFullDT" type="datetime-local">
+                <button type="button" class="btn btn-primary" id="chatFullDTok">OK</button>
+            </div>
         </div>
-      </div>
     </div>
-  </div>
+</div>
 
 
-  <div id="downloadModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:10001;">
+<div id="downloadModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:10001;">
     <div class="card" style="max-width:720px; margin:10vh auto; padding:16px;">
-      <div class="card-header">
-        <div>
-          <h2>Documento pronto para gerar</h2>
-          <div class="meta">Escolha o formato para baixar. Você ainda poderá revisar antes, se quiser.</div>
+        <div class="card-header">
+            <div>
+                <h2>Documento pronto para gerar</h2>
+                <div class="meta">Escolha o formato para baixar. Você ainda poderá revisar antes, se quiser.</div>
+            </div>
+            <button type="button" class="btn btn-ghost" id="downloadClose">Fechar</button>
         </div>
-        <button type="button" class="btn btn-ghost" id="downloadClose">Fechar</button>
-      </div>
 
-      <div id="downloadInfo" class="card" style="margin:0; padding:12px;">
-        <div class="helper" id="downloadSummary">Resumo...</div>
-      </div>
+        <div id="downloadInfo" class="card" style="margin:0; padding:12px;">
+            <div class="helper" id="downloadSummary">Resumo...</div>
+        </div>
 
-      <hr class="sep" />
+        <hr class="sep" />
 
-      <div class="row" style="justify-content:flex-end;">
-        <button type="button" class="btn" id="btnReviewForm">Revisar no formulário</button>
-        <button type="button" class="btn btn-primary" id="btnDownloadDOCX">Baixar DOCX</button>
-        <button type="button" class="btn btn-primary" id="btnDownloadPDF">Baixar PDF</button>
-      </div>
+        <div class="row" style="justify-content:flex-end;">
+            <button type="button" class="btn" id="btnReviewForm">Revisar no formulário</button>
+            <button type="button" class="btn btn-primary" id="btnDownloadDOCX">Baixar DOCX</button>
+            <button type="button" class="btn btn-primary" id="btnDownloadPDF">Baixar PDF</button>
+        </div>
 
-      
+
     </div>
-  </div>
+</div>
 
 
-  <script src="/static/theme.js" defer></script>
-  <script src="/static/anexo1.js" defer></script>
-  </div>
+<script src="/static/theme.js" defer></script>
+<script src="/static/anexo1.js" defer></script>
+</div>
 </body>
 
 </html>

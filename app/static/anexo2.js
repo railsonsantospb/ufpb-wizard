@@ -488,6 +488,11 @@ function gotoStep(n){
 
   elBar.style.width = `${Math.round((current-1)/(total-1)*100)}%`;
 
+  const importCard = document.getElementById("importAnexo1Card");
+  if(importCard){
+    importCard.style.display = (current === 1) ? "block" : "none";
+  }
+
   document.getElementById("btnBack").disabled = current === 1;
   const btnNext = document.getElementById("btnNext");
   if(btnNext){
@@ -742,7 +747,7 @@ function renderReview(){
   const fmtSegs = (list) => {
     const items = normalizeAfastList(list);
     if(!items.length) return ["—"];
-    return items.map((t, i) => `${i + 1}) ${t?.origem || "—"} → ${t?.destino || "—"} | ${fmtDT(t?.data_hora)}`);
+    return items.map((t, i) => `${i + 1}) De ${t?.origem || "—"} para ${t?.destino || "—"} em ${fmtDT(t?.data_hora)}`);
   };
 
   line("Data do relatório", fmtDate(p.data_relatorio));
@@ -1467,7 +1472,7 @@ function ask2(){
       ask2();
       return;
     }
-    askDate("Olá. Vou preencher o Relatório de Viagem (ANEXO II) com você. Qual a data de emissão do relatório?");
+    askDate("Ola. Vou preencher seus dados pessoais no Relatorio de Viagem (ANEXO II). Os trechos de ida e retorno, atividades e demais detalhes serao preenchidos diretamente no formulario. Qual a data de emissao do relatorio?");
     chat2full.state = "data_relatorio";
     return;
   }
@@ -1487,84 +1492,80 @@ function ask2(){
   if(s === "proposto.orgao.detalhe") return askText("Informe o nome do projeto/unidade (obrigatório para Projetos/Outros).");
 
   // afastamento
-  if(s === "afastamento.ida.origem") return askText("Origem da ida (cidade/UF).");
-  if(s === "afastamento.ida.destino") return askText("Destino da ida (cidade/UF).");
-  if(s === "afastamento.ida.data_hora") return askDT("Data e hora da ida.");
+  //   if(s === "afastamento.ida.origem") return askText("Origem da ida (cidade/UF).");
+  //   if(s === "afastamento.ida.destino") return askText("Destino da ida (cidade/UF).");
+  //   if(s === "afastamento.ida.data_hora") return askDT("Data e hora da ida.");
 
-  if(s === "afastamento.retorno.origem"){
-    return askQuick("Origem do retorno (normalmente o destino da ida). Confirmar?", [
-      {label:`Usar “${d.afastamento.ida.destino || "destino da ida"}”`, primary:true, onClick:()=>{
-        if(d.afastamento.ida.destino) reply2("afastamento.retorno.origem", d.afastamento.ida.destino);
-        else { chat2full.state="afastamento.retorno.origem_text"; ask2(); }
-      }},
-      {label:"Informar manualmente", onClick:()=>{ chat2full.state="afastamento.retorno.origem_text"; ask2(); }},
-    ]);
-  }
-  if(s === "afastamento.retorno.origem_text") return askText("Digite a origem do retorno (cidade/UF).");
+  //   if(s === "afastamento.retorno.origem"){
+  //     return askQuick("Origem do retorno (normalmente o destino da ida). Confirmar?", [
+  //       {label:`Usar “${d.afastamento.ida.destino || "destino da ida"}”`, primary:true, onClick:()=>{
+  //         if(d.afastamento.ida.destino) reply2("afastamento.retorno.origem", d.afastamento.ida.destino);
+  //         else { chat2full.state="afastamento.retorno.origem_text"; ask2(); }
+  //       }},
+  //       {label:"Informar manualmente", onClick:()=>{ chat2full.state="afastamento.retorno.origem_text"; ask2(); }},
+  //     ]);
+  //   }
+  //   if(s === "afastamento.retorno.origem_text") return askText("Digite a origem do retorno (cidade/UF).");
 
-  if(s === "afastamento.retorno.destino"){
-    return askQuick("Destino do retorno (normalmente a origem da ida). Confirmar?", [
-      {label:`Usar “${d.afastamento.ida.origem || "origem da ida"}”`, primary:true, onClick:()=>{
-        if(d.afastamento.ida.origem) reply2("afastamento.retorno.destino", d.afastamento.ida.origem);
-        else { chat2full.state="afastamento.retorno.destino_text"; ask2(); }
-      }},
-      {label:"Informar manualmente", onClick:()=>{ chat2full.state="afastamento.retorno.destino_text"; ask2(); }},
-    ]);
-  }
-  if(s === "afastamento.retorno.destino_text") return askText("Digite o destino do retorno (cidade/UF).");
+  //   if(s === "afastamento.retorno.destino"){
+  //     return askQuick("Destino do retorno (normalmente a origem da ida). Confirmar?", [
+  //       {label:`Usar “${d.afastamento.ida.origem || "origem da ida"}”`, primary:true, onClick:()=>{
+  //         if(d.afastamento.ida.origem) reply2("afastamento.retorno.destino", d.afastamento.ida.origem);
+  //         else { chat2full.state="afastamento.retorno.destino_text"; ask2(); }
+  //       }},
+  //       {label:"Informar manualmente", onClick:()=>{ chat2full.state="afastamento.retorno.destino_text"; ask2(); }},
+  //     ]);
+  //   }
+  //   if(s === "afastamento.retorno.destino_text") return askText("Digite o destino do retorno (cidade/UF).");
 
-  if(s === "afastamento.retorno.data_hora") return askDT("Data e hora do retorno.");
+  //   if(s === "afastamento.retorno.data_hora") return askDT("Data e hora do retorno.");
 
   // viagem realizada
-  if(s === "viagem_realizada"){
-    return askQuick("A viagem foi realizada?", [
-      {label:"SIM", primary:true, onClick:()=>reply2("viagem_realizada","sim")},
-      {label:"NÃO", onClick:()=>reply2("viagem_realizada","nao")},
-    ]);
-  }
+  //   if(s === "viagem_realizada"){
+  //     return askQuick("A viagem foi realizada?", [
+  //       {label:"SIM", primary:true, onClick:()=>reply2("viagem_realizada","sim")},
+  //       {label:"NÃO", onClick:()=>reply2("viagem_realizada","nao")},
+  //     ]);
+  //   }
 
   // atividades
-  if(s === "atividades_mode"){
-    return askQuick("Quer que eu monte um texto objetivo a partir de um modelo?", [
-      {label:"Sim (modelo)", primary:true, onClick:()=>{ chat2full.state="atividades_modelo"; ask2(); }},
-      {label:"Não, vou escrever", onClick:()=>{ chat2full.state="atividades_livre"; ask2(); }},
-    ]);
-  }
+  //   if(s === "atividades_mode"){
+  //     return askQuick("Quer que eu monte um texto objetivo a partir de um modelo?", [
+  //       {label:"Sim (modelo)", primary:true, onClick:()=>{ chat2full.state="atividades_modelo"; ask2(); }},
+  //       {label:"Não, vou escrever", onClick:()=>{ chat2full.state="atividades_livre"; ask2(); }},
+  //     ]);
+  //   }
 
-  if(s === "atividades_modelo"){
-    return askQuick("Qual o tipo principal de atividade?", [
-      {label:"Evento (congresso/seminário)", primary:true, onClick:()=>reply2("ativ_modelo","evento")},
-      {label:"Capacitação/Curso", onClick:()=>reply2("ativ_modelo","capacitacao")},
-      {label:"Reunião técnica", onClick:()=>reply2("ativ_modelo","reuniao")},
-      {label:"Visita técnica", onClick:()=>reply2("ativ_modelo","visita")},
-      {label:"Sem modelo", onClick:()=>{ chat2full.state="atividades_livre"; ask2(); }},
-    ]);
-  }
+  //   if(s === "atividades_modelo"){
+  //     return askQuick("Qual o tipo principal de atividade?", [
+  //       {label:"Evento (congresso/seminário)", primary:true, onClick:()=>reply2("ativ_modelo","evento")},
+  //       {label:"Capacitação/Curso", onClick:()=>reply2("ativ_modelo","capacitacao")},
+  //       {label:"Reunião técnica", onClick:()=>reply2("ativ_modelo","reuniao")},
+  //       {label:"Visita técnica", onClick:()=>reply2("ativ_modelo","visita")},
+  //       {label:"Sem modelo", onClick:()=>{ chat2full.state="atividades_livre"; ask2(); }},
+  //     ]);
+  //   }
 
-  if(s === "atividades_livre") return askText("Descreva as atividades desenvolvidas (objetivo e direto).");
+  //   if(s === "atividades_livre") return askText("Descreva as atividades desenvolvidas (objetivo e direto).");
 
-  if(s === "nao_realizada_motivo") return askText("Viagem não realizada. Informe, de forma objetiva, o motivo.");
+  //   if(s === "nao_realizada_motivo") return askText("Viagem não realizada. Informe, de forma objetiva, o motivo.");
 
-  if(s === "just_prazo"){
-    return askText("Relatório fora do prazo (mais de 5 dias após retorno). Informe uma justificativa objetiva.");
-  }
+  //   if(s === "just_prazo"){
+  //     return askText("Relatório fora do prazo (mais de 5 dias após retorno). Informe uma justificativa objetiva.");
+  //   }
 
   if(s === "summary"){
     const payload = buildPayloadAnexo2FromChat();
     const cpf = payload?.proposto?.cpf || "";
-    const cpfMask = cpf && cpf.length===11 ? (cpf.slice(0,3)+"***"+cpf.slice(-2)) : "—";
-    const fmtDate = (v) => formatDateBR(v) || "—";
-    const fmtDT = (v) => formatDateTimeBR(v) || "—";
-    const resumo =
-`Resumo:
-• Proposto: ${payload?.proposto?.nome || "—"} | CPF: ${cpfMask} | SIAPE: ${payload?.proposto?.siape || "—"}
-• Órgão: ${payload?.proposto?.orgao?.tipo || "—"} ${payload?.proposto?.orgao?.detalhe ? "(" + payload.proposto.orgao.detalhe + ")" : ""}
-• Data do relatório: ${fmtDate(payload.data_relatorio)}
-• Ida: ${payload?.afastamento?.ida?.origem || "—"} → ${payload?.afastamento?.ida?.destino || "—"} | ${fmtDT(payload?.afastamento?.ida?.data_hora)}
-• Retorno: ${payload?.afastamento?.retorno?.origem || "—"} → ${payload?.afastamento?.retorno?.destino || "—"} | ${fmtDT(payload?.afastamento?.retorno?.data_hora)}
-• Viagem realizada: ${payload.viagem_realizada || "—"}
-
-Ao aplicar, eu preencho o formulário manual e te levo para o início para revisão.`;
+    const cpfMask = cpf && cpf.length===11 ? (cpf.slice(0,3)+"***"+cpf.slice(-2)) : "-";
+    const fmtDate = (v) => formatDateBR(v) || "-";
+    const orgaoDetalhe = payload?.proposto?.orgao?.detalhe ? " (" + payload.proposto.orgao.detalhe + ")" : "";
+    const resumo = "Resumo:\n" +
+      "Proposto: " + (payload?.proposto?.nome || "-") + " | CPF: " + cpfMask + " | SIAPE: " + (payload?.proposto?.siape || "-") + "\n" +
+      "Orgao: " + (payload?.proposto?.orgao?.tipo || "-") + orgaoDetalhe + "\n" +
+      "Data do relatorio: " + fmtDate(payload.data_relatorio) + "\n\n" +
+      "Os trechos de ida/retorno, atividades e demais campos serao preenchidos no formulario.\n" +
+      "Ao aplicar, eu preencho os dados pessoais no formulario e te levo para revisao.";
 
     return askQuick(resumo, [
       {label:"Aplicar e revisar", primary:true, onClick:()=>finalizeChatAnexo2ToManual()},
@@ -1609,86 +1610,86 @@ function reply2(field, value){
       chat2full.state = "proposto.orgao.detalhe"; ask2(); return;
     }
     d.proposto.orgao.detalhe = null;
-    chat2full.state = "afastamento.ida.origem"; ask2(); return;
+    chat2full.state = "summary"; ask2(); return;
   }
   if(chat2full.state === "proposto.orgao.detalhe"){
-    if(!isMinMax(value, 2, 120)) return fail("Detalhe obrigatório para Projetos/Outros.");
+    if(!isMinMax(value, 2, 120)) return fail("Detalhe obrigatorio para Projetos/Outros.");
     d.proposto.orgao.detalhe = value.trim();
-    chat2full.state = "afastamento.ida.origem"; ask2(); return;
+    chat2full.state = "summary"; ask2(); return;
   }
 
   // afastamento texto
-  if(chat2full.state === "afastamento.ida.origem"){
-    if(!isMinMax(value, 2, 80)) return fail("Origem inválida.");
-    d.afastamento.ida.origem = value.trim();
-    chat2full.state = "afastamento.ida.destino"; ask2(); return;
-  }
-  if(chat2full.state === "afastamento.ida.destino"){
-    if(!isMinMax(value, 2, 80)) return fail("Destino inválido.");
-    d.afastamento.ida.destino = value.trim();
-    chat2full.state = "afastamento.ida.data_hora"; ask2(); return;
-  }
+  //   if(chat2full.state === "afastamento.ida.origem"){
+  //     if(!isMinMax(value, 2, 80)) return fail("Origem inválida.");
+  //     d.afastamento.ida.origem = value.trim();
+  //     chat2full.state = "afastamento.ida.destino"; ask2(); return;
+  //   }
+  //   if(chat2full.state === "afastamento.ida.destino"){
+  //     if(!isMinMax(value, 2, 80)) return fail("Destino inválido.");
+  //     d.afastamento.ida.destino = value.trim();
+  //     chat2full.state = "afastamento.ida.data_hora"; ask2(); return;
+  //   }
 
-  if(field === "afastamento.retorno.origem"){
-    d.afastamento.retorno.origem = value.trim();
-    chat2full.state = "afastamento.retorno.destino"; ask2(); return;
-  }
-  if(chat2full.state === "afastamento.retorno.origem_text"){
-    if(!isMinMax(value, 2, 80)) return fail("Origem inválida.");
-    d.afastamento.retorno.origem = value.trim();
-    chat2full.state = "afastamento.retorno.destino"; ask2(); return;
-  }
-  if(field === "afastamento.retorno.destino"){
-    d.afastamento.retorno.destino = value.trim();
-    chat2full.state = "afastamento.retorno.data_hora"; ask2(); return;
-  }
-  if(chat2full.state === "afastamento.retorno.destino_text"){
-    if(!isMinMax(value, 2, 80)) return fail("Destino inválido.");
-    d.afastamento.retorno.destino = value.trim();
-    chat2full.state = "afastamento.retorno.data_hora"; ask2(); return;
-  }
+  //   if(field === "afastamento.retorno.origem"){
+  //     d.afastamento.retorno.origem = value.trim();
+  //     chat2full.state = "afastamento.retorno.destino"; ask2(); return;
+  //   }
+  //   if(chat2full.state === "afastamento.retorno.origem_text"){
+  //     if(!isMinMax(value, 2, 80)) return fail("Origem inválida.");
+  //     d.afastamento.retorno.origem = value.trim();
+  //     chat2full.state = "afastamento.retorno.destino"; ask2(); return;
+  //   }
+  //   if(field === "afastamento.retorno.destino"){
+  //     d.afastamento.retorno.destino = value.trim();
+  //     chat2full.state = "afastamento.retorno.data_hora"; ask2(); return;
+  //   }
+  //   if(chat2full.state === "afastamento.retorno.destino_text"){
+  //     if(!isMinMax(value, 2, 80)) return fail("Destino inválido.");
+  //     d.afastamento.retorno.destino = value.trim();
+  //     chat2full.state = "afastamento.retorno.data_hora"; ask2(); return;
+  //   }
 
   // viagem realizada / modelo
-  if(field === "viagem_realizada"){
-    d.viagem_realizada = value;
-    if(value === "nao"){
-      chat2full.state = "nao_realizada_motivo";
-      ask2(); return;
-    }
-    chat2full.state = "atividades_mode"; ask2(); return;
-  }
+  //   if(field === "viagem_realizada"){
+  //     d.viagem_realizada = value;
+  //     if(value === "nao"){
+  //       chat2full.state = "nao_realizada_motivo";
+  //       ask2(); return;
+  //     }
+  //     chat2full.state = "atividades_mode"; ask2(); return;
+  //   }
 
-  if(field === "ativ_modelo"){
-    d.atividades_desenvolvidas = buildActivitiesTemplate(value);
-    if(isLate5Days()){
-      chat2full.state = "just_prazo"; ask2(); return;
-    }
-    chat2full.state = "summary"; ask2(); return;
-  }
+  //   if(field === "ativ_modelo"){
+  //     d.atividades_desenvolvidas = buildActivitiesTemplate(value);
+  //     if(isLate5Days()){
+  //       chat2full.state = "just_prazo"; ask2(); return;
+  //     }
+  //     chat2full.state = "summary"; ask2(); return;
+  //   }
 
-  if(chat2full.state === "atividades_livre"){
-    if(!isMinMax(value, 10, 4000)) return fail("Texto curto. Informe pelo menos 10 caracteres.");
-    d.atividades_desenvolvidas = value.trim();
-    if(isLate5Days()){
-      chat2full.state = "just_prazo"; ask2(); return;
-    }
-    chat2full.state = "summary"; ask2(); return;
-  }
+  //   if(chat2full.state === "atividades_livre"){
+  //     if(!isMinMax(value, 10, 4000)) return fail("Texto curto. Informe pelo menos 10 caracteres.");
+  //     d.atividades_desenvolvidas = value.trim();
+  //     if(isLate5Days()){
+  //       chat2full.state = "just_prazo"; ask2(); return;
+  //     }
+  //     chat2full.state = "summary"; ask2(); return;
+  //   }
 
-  if(chat2full.state === "nao_realizada_motivo"){
-    if(!isMinMax(value, 10, 2000)) return fail("Texto curto. Informe pelo menos 10 caracteres.");
-    d.atividades_desenvolvidas = `Viagem não realizada.\nMotivo: ${value.trim()}.`;
-    if(isLate5Days()){
-      chat2full.state = "just_prazo"; ask2(); return;
-    }
-    chat2full.state = "summary"; ask2(); return;
-  }
+  //   if(chat2full.state === "nao_realizada_motivo"){
+  //     if(!isMinMax(value, 10, 2000)) return fail("Texto curto. Informe pelo menos 10 caracteres.");
+  //     d.atividades_desenvolvidas = `Viagem não realizada.\nMotivo: ${value.trim()}.`;
+  //     if(isLate5Days()){
+  //       chat2full.state = "just_prazo"; ask2(); return;
+  //     }
+  //     chat2full.state = "summary"; ask2(); return;
+  //   }
 
-  if(chat2full.state === "just_prazo"){
-    if(!isMinMax(value, 10, 2000)) return fail("Justificativa curta. Informe pelo menos 10 caracteres.");
-    d.justificativa_prestacao_contas_fora_prazo = value.trim();
-    chat2full.state = "summary"; ask2(); return;
-  }
+  //   if(chat2full.state === "just_prazo"){
+  //     if(!isMinMax(value, 10, 2000)) return fail("Justificativa curta. Informe pelo menos 10 caracteres.");
+  //     d.justificativa_prestacao_contas_fora_prazo = value.trim();
+  //     chat2full.state = "summary"; ask2(); return;
+  //   }
 
   ask2();
 }
@@ -1716,32 +1717,31 @@ if(c2.dtOk) c2.dtOk.addEventListener("click", () => {
   if(!v) return;
   c2bubble("user", v);
 
-  const d = chat2full.data;
-
-  if(chat2full.state === "afastamento.ida.data_hora"){
-    d.afastamento.ida.data_hora = v;
-    chat2full.state = "afastamento.retorno.origem";
-    ask2();
-    return;
-  }
-
-  if(chat2full.state === "afastamento.retorno.data_hora"){
-    d.afastamento.retorno.data_hora = v;
-
-    // valida retorno >= ida
-    const ida = d.afastamento.ida.data_hora ? new Date(d.afastamento.ida.data_hora) : null;
-    const ret = d.afastamento.retorno.data_hora ? new Date(d.afastamento.retorno.data_hora) : null;
-    if(ida && ret && ret < ida){
-      c2bubble("bot", "O retorno não pode ser anterior à ida. Informe novamente a data/hora do retorno.");
-      chat2full.state = "afastamento.retorno.data_hora";
-      ask2();
-      return;
-    }
-
-    chat2full.state = "viagem_realizada";
-    ask2();
-    return;
-  }
+  // Afastamento (ida/retorno) sera preenchido no formulario - comentado
+  // if(chat2full.state === "afastamento.ida.data_hora"){
+  //   d.afastamento.ida.data_hora = v;
+  //   chat2full.state = "afastamento.retorno.origem";
+  //   ask2();
+  //   return;
+  // }
+  //
+  // if(chat2full.state === "afastamento.retorno.data_hora"){
+  //   d.afastamento.retorno.data_hora = v;
+  //
+  //   // valida retorno >= ida
+  //   const ida = d.afastamento.ida.data_hora ? new Date(d.afastamento.ida.data_hora) : null;
+  //   const ret = d.afastamento.retorno.data_hora ? new Date(d.afastamento.retorno.data_hora) : null;
+  //   if(ida && ret && ret < ida){
+  //     c2bubble("bot", "O retorno nao pode ser anterior a ida. Informe novamente a data/hora do retorno.");
+  //     chat2full.state = "afastamento.retorno.data_hora";
+  //     ask2();
+  //     return;
+  //   }
+  //
+  //   chat2full.state = "viagem_realizada";
+  //   ask2();
+  //   return;
+  // }
 });
 
 if(c2.send) c2.send.addEventListener("click", () => {
@@ -1755,10 +1755,6 @@ if(c2.send) c2.send.addEventListener("click", () => {
     s === "proposto.cpf" ||
     s === "proposto.siape" ||
     s === "proposto.orgao.detalhe" ||
-    s === "afastamento.ida.origem" ||
-    s === "afastamento.ida.destino" ||
-    s === "afastamento.retorno.origem_text" ||
-    s === "afastamento.retorno.destino_text" ||
     s === "atividades_livre" ||
     s === "nao_realizada_motivo" ||
     s === "just_prazo"
